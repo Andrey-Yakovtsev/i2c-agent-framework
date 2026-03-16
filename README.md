@@ -3,10 +3,10 @@
 Переиспользуемый фреймворк для автономного создания проектной документации и кода с помощью AI-агентов.
 
 ```
-Идея → PRD → ADR → RFC → Code
+Идея → PRD → ADR → RFC → Tests + Code
 ```
 
-Claude Code выступает оркестратором. Каждый документ проходит через конвейер из 5 специализированных субагентов:
+Claude Code выступает оркестратором. Каждый документ проходит через конвейер из специализированных субагентов:
 
 ```
 Supervisor (pre-flight) → Researcher → Architect → Critic → Writer → Supervisor (post-review)
@@ -148,15 +148,22 @@ Supervisor на pre-flight проверяет граф зависимостей 
 Реализовывай RFC в том же порядке зависимостей что и создавал.
 
 Конвейер:
-1. **Architect [Planning]** — разбивает RFC на модули, определяет какие можно реализовывать параллельно
-2. **Critic [Plan review]** — проверяет что все AC покрыты, параллельные модули не конфликтуют
+
+1. **Architect [Planning + Test Planning]** — параллельно создаёт два плана: план реализации (модули, порядок, параллелизм) и план тестов (матрица AC → тип теста, файловая структура, фикстуры)
+2. **Critic [Plan review]** — проверяет оба плана: AC покрыты в реализации? каждый AC покрыт тестом нужного типа?
 3. **Writer** — финализирует Implementation Plan в `docs/impl/IMPL-[N]-[slug].md`
-4. **Coding agents** — оркестратор спавнит субагентов параллельно для независимых модулей, последовательно для зависимых
-5. **Critic [Verification]** — читает написанный код, сверяет каждый AC из RFC: PASS / FAIL / PARTIAL
+4. **Coding agents + Test Writer agents** — запускаются **параллельно**: coding-агенты реализуют модули, test-writer агенты пишут тесты из RFC (не видят реализацию). После завершения — запускается тест-раннер
+5. **Failure Analyst** — для каждого упавшего теста параллельно анализирует: `CODE_BUG` / `TEST_BUG` / `BOTH` / `AMBIGUOUS`. RFC — единственный арбитр
+6. **Critic [Verification]** — читает код, учитывает результаты тестов и вердикты Failure Analyst. PASS-тест = доказательство покрытия AC
 
-Если Verification выявляет проблемы — оркестратор предлагает доработать конкретные модули или зафиксировать как tech debt.
+Возможные исходы Verification:
+- `VERIFIED` — все AC покрыты → **SUCCESS**
+- `NEEDS_FIXES` — проблемы в коде (CODE_BUG) → доработка кода, повтор Verification (макс 2 раунда, затем HALT_FAILURE_BUDGET)
+- `NEEDS_TEST_FIX` — тесты неправильно интерпретируют RFC → доработка тестов, не кода
+- `AMBIGUOUS` — RFC недостаточно специфичен → показать пользователю спорное место в RFC
+- `CRITICAL_GAPS` — RFC не реализован корректно → пересоздать Implementation Plan или Human-in-the-loop
 
-Результат: код в проекте + `docs/impl/IMPL-[N]-[slug].md` + запись в JOURNAL.md
+Результат: код + тесты в проекте + `docs/impl/IMPL-[N]-[slug].md` + запись в JOURNAL.md
 
 ---
 
@@ -190,7 +197,7 @@ Supervisor на pre-flight проверяет граф зависимостей 
 | `/i2c-create-prd` | — | Создаёт Product Requirements Document |
 | `/i2c-create-adr` | `название решения` | Создаёт Architecture Decision Record |
 | `/i2c-create-rfc` | `название компонента` | Создаёт RFC для компонента |
-| `/i2c-code-rfc` | `N` | Реализует компонент по RFC-N (спавнит coding-агентов) |
+| `/i2c-code-rfc` | `N` | Реализует компонент по RFC-N (код + тесты параллельно, анализ падений) |
 | `/i2c-verify-rfc` | `N` | Проверяет существующую реализацию против AC из RFC-N |
 | `/i2c-update-prd` | `описание изменений` | Обновляет PRD после пивота |
 | `/i2c-update-adr` | `N описание` | Пересматривает ADR-N (с предупреждением о зависимых RFC) |
@@ -278,13 +285,15 @@ Researcher проаудирует кодовую базу и заполнит ME
 
 | Агент | Режимы | Роль |
 |-------|--------|------|
-| **Supervisor** | Pre-flight, Post-review | Pre-flight: нужен ли артефакт? Post-review: вписывается в экосистему? |
-| **Researcher** | PRD, RFC, Discovery | PRD: проблема, пользователи, рынок. RFC: контекст компонента, аналоги. Discovery: аудит существующего кода |
-| **Architect** | PRD, ADR, RFC, Planning | Проектирует решение, взвешивает трейдоффы. Planning: разбивает RFC на модули для coding-агентов |
-| **Critic** | PRD, ADR, RFC, Planning, Verification | Атакует черновики. Verification: проверяет реализацию против AC |
+| **Supervisor** | Pre-flight, Post-review | Pre-flight: нужен ли артефакт? (APPROVE / APPROVE_WITH_ASSUMPTIONS / SKIP / CLARIFY). Post-review: вписывается в экосистему? |
+| **Researcher** | PRD, RFC, Discovery | PRD: проблема, пользователи, рынок. RFC: контекст компонента, аналоги. Discovery: аудит существующего кода. Маркирует утверждения как [ФАКТ] / [ВЫВОД] |
+| **Architect** | PRD, ADR, RFC, Planning, Test Planning | Проектирует решение, взвешивает трейдоффы. Planning: разбивает RFC на модули. Test Planning: матрица AC → тип теста (unit/integration/e2e/benchmark) |
+| **Critic** | PRD, ADR, RFC, Planning, Verification | Атакует черновики, маркирует находки как [ТОЧНО] / [ПОДОЗРЕНИЕ]. Verification: проверяет реализацию против AC с учётом результатов тестов |
 | **Writer** | Все документальные | Финализирует документ строго по шаблону |
+| **Test Writer** | TestWriter | Пишет тесты из RFC-спецификации, не видит реализацию. Тест = контракт, не описание кода |
+| **Failure Analyst** | — | Анализирует упавший тест: CODE_BUG / TEST_BUG / BOTH / AMBIGUOUS. RFC — единственный арбитр |
 
-Все агенты имеют лимиты длины: Researcher ≤ 400 слов, Architect ≤ 600–1000 слов, Critic ≤ 300 слов. Это не ограничение — это дисциплина: краткость означает что агент понял задачу.
+Агенты имеют лимиты длины: Researcher ≤ 400 слов, Architect ≤ 600–1000 слов, Critic ≤ 300 слов, Test Plan ≤ 400 слов. Краткость — признак понимания задачи.
 
 ---
 
@@ -295,7 +304,7 @@ your-project/
   CLAUDE.md                        ← содержит @~/i2c-agent-framework/CLAUDE.md
   .i2c/
     config.md                      ← контекст проекта (заполняется при setup)
-    MEMORY.md                      ← все принятые решения (единый источник истины)
+    MEMORY.md                      ← все принятые решения + RTM (единый источник истины)
     GOALS.md                       ← текущая стадия и следующий шаг
     JOURNAL.md                     ← лог: что создано, открытые вопросы, паттерны
     pipeline_state.json            ← стейт текущего пайплайна (для resume)
@@ -303,6 +312,9 @@ your-project/
       research.md
       prd-draft.md
       prd-review.md
+      test-[N]-plan.md
+      failure-analysis-[N].md
+      impl-[N]-test-results.md
       ...
   docs/
     PRD.md                         ← Product Requirements Document
@@ -314,6 +326,13 @@ your-project/
     impl/
       IMPL-001-data-model.md       ← Implementation Plans
       IMPL-002-auth-service.md
+  tests/
+    rfc-001/                       ← тесты написанные из RFC-001 (Test Writer)
+      conftest.py
+      test_core.py
+      test_api.py
+    rfc-002/
+      ...
 ```
 
 **Что коммитить:** всё кроме `.i2c/scratch/`
@@ -336,9 +355,11 @@ your-project/
   agents/
     supervisor.md          — промпт: pre-flight и post-review
     researcher.md          — промпт: PRD / RFC / Discovery режимы
-    architect.md           — промпт: PRD / ADR / RFC / Planning режимы
+    architect.md           — промпт: PRD / ADR / RFC / Planning / Test Planning режимы
     critic.md              — промпт: документы + Verification режим
     writer.md              — промпт: финализация по шаблону
+    test-writer.md         — промпт: написание тестов из RFC (без доступа к реализации)
+    failure-analyst.md     — промпт: анализ упавших тестов, RFC как арбитр
   commands/                — slash команды → symlink в ~/.claude/commands/
     i2c-setup.md
     i2c-create-prd.md
@@ -356,7 +377,7 @@ your-project/
     ADR.md                 — шаблон Architecture Decision Record
     RFC.md                 — шаблон Request for Comments
     IMPL.md                — шаблон Implementation Plan
-    MEMORY.md              — структурированный шаблон памяти проекта
+    MEMORY.md              — шаблон памяти проекта (с RTM)
   diagnostics/
     review-checklist.md    — чеклист консистентности для /i2c-check
 ```
@@ -369,10 +390,12 @@ your-project/
 
 **MEMORY.md — закон.** Решения зафиксированные в MEMORY.md не переоткрываются. Следующий RFC не будет предлагать "рассмотреть PostgreSQL" если в MEMORY.md уже написано "выбрали MongoDB, ADR-002".
 
+**RFC — единственный арбитр.** Когда тест и код расходятся, правота определяется по RFC, а не по "что логичнее выглядит". Это делает спецификацию реально работающим документом, а не формальностью.
+
+**Тесты из документации, не из кода.** Test Writer пишет тесты из RFC не видя реализацию. Это гарантирует что тесты проверяют ожидаемое поведение, а не то что написано. Тест = контракт.
+
 **Критика обязательна.** Ни один черновик не становится финальным без Critic. Это не опциональный шаг — это архитектурный инвариант.
 
 **Стейт сохраняется.** `pipeline_state.json` фиксирует каждый шаг. Обрыв сессии — не потеря работы, а пауза.
 
-**RFC — это контракт.** Документ считается готовым только если coding-агент может реализовать его без единого вопроса: DDL написан, API контракты определены, edge cases описаны, AC проверяемы.
-
-**Supervisor — привратник.** Документ попадает в `docs/` только после ACCEPTED от Supervisor. Два отказа подряд — Human-in-the-loop с тремя вариантами: publish / retry / abandon.
+**Supervisor — привратник.** Документ попадает в `docs/` только после ACCEPTED от Supervisor. Неопределённости делятся на блокирующие (CLARIFY — стоп) и некритичные (APPROVE_WITH_ASSUMPTIONS — продолжить с явно зафиксированными допущениями).

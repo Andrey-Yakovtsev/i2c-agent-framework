@@ -34,6 +34,7 @@
   "current_step": "architect",
   "completed_steps": ["supervisor-preflight", "researcher"],
   "revision": 0,
+  "fixes_round": 0,
   "scratch_files": {
     "research": ".i2c/scratch/research.md",
     "draft": ".i2c/scratch/prd-draft.md"
@@ -42,6 +43,8 @@
   "updated_at": "2026-03-15T10:30:00Z"
 }
 ```
+
+> `fixes_round` — используется в `code-rfc` для отслеживания раундов исправлений (Failure Budget).
 
 **Правила:**
 - Обновляй `current_step` и `completed_steps` перед запуском каждого субагента
@@ -115,6 +118,7 @@
 **Если вердикт SKIP** — сообщи пользователю причину, не запускай пайплайн. Удали pipeline_state.json.
 **Если вердикт CLARIFY** — задай вопрос пользователю, дождись ответа, затем продолжи.
 **Если вердикт APPROVE** — сохрани подсказки Supervisor, передай их Researcher.
+**Если вердикт APPROVE_WITH_ASSUMPTIONS** — сохрани подсказки и список допущений, передай их Researcher; Architect обязан зафиксировать допущения в черновике в секции `## Допущения`.
 
 ### Шаг 1 — Researcher
 Обнови `pipeline_state.json`: добавь `"supervisor-preflight"` в `completed_steps`, `current_step: "researcher"`.
@@ -251,7 +255,9 @@
 - Список файлов `docs/ADR-*.md`
 
 **Если SKIP** — возможно это решение уже зафиксировано в MEMORY.md. Сообщи пользователю. Удали pipeline_state.json.
-**Если CLARIFY / APPROVE** — действуй по вердикту.
+**Если CLARIFY** — задай вопрос пользователю, дождись ответа, затем продолжи.
+**Если APPROVE** — сохрани подсказки Supervisor, передай их Architect.
+**Если APPROVE_WITH_ASSUMPTIONS** — сохрани подсказки и список допущений, передай их Architect; Architect фиксирует допущения в черновике в секции `## Допущения`.
 
 ### Шаг 1 — Architect
 Обнови `pipeline_state.json`: добавь `"supervisor-preflight"` в `completed_steps`, `current_step: "architect"`.
@@ -363,7 +369,10 @@ API Contract
 
 Особо проверяет: есть ли необходимые ADR, не создаётся ли RFC раньше своих зависимостей.
 
-**Если SKIP / CLARIFY / APPROVE** — действуй по вердикту.
+**Если SKIP** — сообщи пользователю причину, не запускай пайплайн. Удали pipeline_state.json.
+**Если CLARIFY** — задай вопрос пользователю, дождись ответа, затем продолжи.
+**Если APPROVE** — сохрани подсказки Supervisor, передай их Researcher.
+**Если APPROVE_WITH_ASSUMPTIONS** — сохрани подсказки и список допущений, передай их Researcher; Architect фиксирует допущения в черновике в секции `## Допущения`.
 
 ### Шаг 1 — Researcher
 Обнови `pipeline_state.json`: добавь `"supervisor-preflight"` в `completed_steps`, `current_step: "researcher"`.
@@ -440,8 +449,9 @@ API Contract
 **После завершения:**
 1. Обнови `pipeline_state.json`: `"status": "done"`.
 2. Добавь ключевые решения RFC в `.i2c/MEMORY.md`
-3. Запиши в `.i2c/JOURNAL.md` (включая паттерн от Supervisor)
-4. Если создано 3+ RFC — предложи пользователю запустить `/i2c-check`
+3. Обнови RTM в `.i2c/MEMORY.md`: добавь строки `REQ → RFC-[NNN]` (Writer должен был включить ссылки на требования из PRD в RFC; если нет — добавь строку с `—` в колонке AC и статусом `⬜ Not started`)
+4. Запиши в `.i2c/JOURNAL.md` (включая паттерн от Supervisor)
+5. Если создано 3+ RFC — предложи пользователю запустить `/i2c-check`
 
 ---
 
@@ -533,20 +543,24 @@ Supervisor проверяет:
 - Все зависимые RFC (depends_on) уже реализованы?
 - Нет ли уже запущенной реализации этого RFC?
 
-**Если SKIP / CLARIFY** — действуй по вердикту. **Если APPROVE** — продолжай.
+**Если SKIP** — сообщи пользователю причину, не запускай пайплайн. Удали pipeline_state.json.
+**Если CLARIFY** — задай вопрос пользователю, дождись ответа, затем продолжи.
+**Если APPROVE** — продолжай.
+**Если APPROVE_WITH_ASSUMPTIONS** — сохрани список допущений, передай их Architect (Planning); Architect фиксирует допущения в плане реализации.
 
-### Шаг 1 — Architect (Planning)
+### Шаг 1 — Architect (Planning + Test Planning)
 
 Обнови `pipeline_state.json`: `command: "code-rfc"`, `argument: "[N]"`, `current_step: "architect-planning"`.
-Запусти субагент с промптом из `~/i2c-agent-framework/agents/architect.md`.
 
-Передай ему:
-- Содержимое `docs/rfc/RFC-[N]-*.md`
-- Содержимое `.i2c/MEMORY.md`
-- Список уже реализованных RFC
-- Режим: "Planning"
+Запусти **два субагента параллельно** (в одном сообщении):
 
-Субагент пишет: `.i2c/scratch/impl-[N]-plan-draft.md`
+**Субагент A** — `~/i2c-agent-framework/agents/architect.md`, режим: "Planning"
+Передай: RFC-[N], MEMORY.md, список уже реализованных RFC
+Пишет: `.i2c/scratch/impl-[N]-plan-draft.md`
+
+**Субагент B** — `~/i2c-agent-framework/agents/architect.md`, режим: "Test Planning"
+Передай: RFC-[N], MEMORY.md
+Пишет: `.i2c/scratch/test-[N]-plan.md`
 
 ### Шаг 2 — Critic (Planning review)
 
@@ -555,10 +569,12 @@ Supervisor проверяет:
 
 Передай ему:
 - `.i2c/scratch/impl-[N]-plan-draft.md`
+- `.i2c/scratch/test-[N]-plan.md`
 - `docs/rfc/RFC-[N]-*.md` (для сверки AC)
 - Режим: "Planning"
 
-Субагент пишет: `.i2c/scratch/impl-[N]-plan-review.md`
+Субагент проверяет оба плана: покрытие AC в реализации и покрытие AC тестами.
+Пишет: `.i2c/scratch/impl-[N]-plan-review.md`
 
 ### Шаг 3 — Writer (финализация плана)
 
@@ -574,25 +590,48 @@ Supervisor проверяет:
 Субагент пишет: `.i2c/scratch/impl-[N]-plan-final.md`
 Скопируй в: `docs/impl/IMPL-[N]-[slug].md`
 
-### Шаг 4 — Запуск coding-агентов
+### Шаг 4 — Параллельный запуск coding-агентов и test-writer агентов
 
 Обнови `pipeline_state.json`: `current_step: "coding"`.
 
-Прочитай `docs/impl/IMPL-[N]-[slug].md` и определи граф выполнения.
+Прочитай `docs/impl/IMPL-[N]-[slug].md` и `.i2c/scratch/test-[N]-plan.md`.
 
-**Для каждой параллельной группы** — запускай агентов одновременно (несколько вызовов Agent tool в одном сообщении):
+**Для первой параллельной группы** — запускай coding-агентов и test-writer агентов **в одном сообщении**:
 
 ```
-Для каждого модуля в группе:
-  Запусти субагент (general-purpose) с задачей:
-    - Прочитай RFC: docs/rfc/RFC-[N]-*.md
-    - Прочитай MEMORY.md: .i2c/MEMORY.md
-    - Твоя задача: [задача модуля из IMPL]
-    - Пиши код в: [файлы модуля]
-    - После завершения: запиши отчёт в .i2c/scratch/impl-[N]-module-[M]-report.md
+Группа A — coding-агенты (по модулям из IMPL):
+  Для каждого модуля в первой волне:
+    Запусти субагент (general-purpose):
+      - Прочитай RFC: docs/rfc/RFC-[N]-*.md
+      - Прочитай MEMORY.md: .i2c/MEMORY.md
+      - Твоя задача: [задача модуля из IMPL]
+      - Пиши код в: [файлы модуля]
+      - После завершения: запиши отчёт в .i2c/scratch/impl-[N]-module-[M]-report.md
+
+Группа B — test-writer агенты (по файлам из test-plan):
+  Для каждого тест-файла из test-[N]-plan.md:
+    Запусти субагент с промптом из ~/i2c-agent-framework/agents/test-writer.md:
+      - Прочитай RFC: docs/rfc/RFC-[N]-*.md
+      - Прочитай MEMORY.md: .i2c/MEMORY.md
+      - Прочитай test-plan: .i2c/scratch/test-[N]-plan.md
+      - Пиши тесты в: [файл из test-plan]
+      - НЕ читай файлы реализации
+      - После завершения: запиши отчёт в .i2c/scratch/test-[N]-write-report.md
 ```
 
-Дождись завершения группы, затем переходи к следующей (согласно порядку из IMPL).
+Дождись завершения всех агентов группы. Последующие волны coding-агентов запускай без test-writer агентов (тесты написаны один раз).
+
+**После завершения всех coding-агентов** — запусти тест-раннер:
+```
+Запусти субагент (general-purpose) с задачей:
+  - Выполни тесты: [команда из MEMORY.md или config.md, например: pytest tests/rfc-[N]/]
+  - Запиши результаты в .i2c/scratch/impl-[N]-test-results.md
+  Формат результатов:
+    | Тест | AC | Статус | Stacktrace (при FAIL) |
+    |------|----|--------|-----------------------|
+    | test_ac1_... | AC1 | PASS | — |
+    | test_ac2_... | AC2 | FAIL | [краткий stacktrace] |
+```
 
 **Отчёт модуля** (`impl-[N]-module-[M]-report.md`):
 ```markdown
@@ -603,37 +642,97 @@ Supervisor проверяет:
 - Нерешённые вопросы: [если есть]
 ```
 
-### Шаг 5 — Critic (Verification)
+### Шаг 5 — Анализ тестов + Verification
 
 Обнови `pipeline_state.json`: `current_step: "critic-verification"`.
+
+#### 5a — Failure Analyst (если есть упавшие тесты)
+
+Прочитай `.i2c/scratch/impl-[N]-test-results.md`.
+
+**Если есть строки со статусом FAIL:**
+Для каждого упавшего теста запусти субагент с промптом из `~/i2c-agent-framework/agents/failure-analyst.md` — параллельно (все упавшие тесты в одном сообщении):
+
+```
+Для каждого FAIL в test-results.md:
+  Передай субагенту:
+    - docs/rfc/RFC-[N]-*.md
+    - Код упавшего теста (читай из файла теста)
+    - Stacktrace из test-results.md
+    - Соответствующий файл реализации (определи по AC который тест покрывает)
+    - Текст AC из RFC
+```
+
+Все агенты пишут блоки в один файл: `.i2c/scratch/failure-analysis-[N].md`
+
+Дождись завершения всех Failure Analyst агентов.
+
+**Если все тесты PASS** — пропусти этот шаг.
+
+#### 5b — Critic (Verification)
+
 Запусти субагент с промптом из `~/i2c-agent-framework/agents/critic.md`.
 
 Передай ему:
 - `docs/rfc/RFC-[N]-*.md` (с AC)
 - `docs/impl/IMPL-[N]-[slug].md` (что планировалось)
 - Все `impl-[N]-module-*-report.md`
+- `.i2c/scratch/impl-[N]-test-results.md` (итоги тестов)
+- `.i2c/scratch/failure-analysis-[N].md` (если были падения)
 - Режим: "Verification"
+
+Инструкция для Critic: учитывай результаты тестов и вердикты Failure Analyst:
+- `PASS`-тест → AC считается покрытым с доказательством (приоритет над `[ПОДОЗРЕНИЕ]`)
+- `FAIL` с вердиктом `CODE_BUG` → фиксируй как `[ТОЧНО]` в review
+- `FAIL` с вердиктом `TEST_BUG` → не считай это проблемой кода
+- `FAIL` с вердиктом `AMBIGUOUS` → выноси в "Открытые вопросы", не блокируй
 
 Субагент читает реализованные файлы и пишет: `.i2c/scratch/impl-[N]-verification.md`
 
-**Если вердикт VERIFIED:**
+#### 5c — Обработка вердиктов
+
+**Если VERIFIED:**
 - Запиши в `.i2c/JOURNAL.md` что RFC-[N] реализован
 - Обнови `pipeline_state.json`: `"status": "done"`
-- Сообщи пользователю: список файлов, покрытые AC
+- Сообщи пользователю: список файлов, покрытые AC → терминальное состояние **SUCCESS**
 
-**Если NEEDS_FIXES:**
-- Покажи пользователю список проблем из verification.md
-- Спроси: исправить сейчас (запустить доработку конкретных модулей) или зафиксировать как tech debt?
-- При "исправить": спавни coding-агентов только для проблемных модулей → повтори Verification
+**Если NEEDS_FIXES** (CODE_BUG в тестах или проблемы из кода):
+- Увеличь `fixes_round` в `pipeline_state.json` на 1
+- **Если `fixes_round >= 2`** → **HALT_FAILURE_BUDGET**
+- **Иначе** — покажи список: что исправить в коде; спавни coding-агентов для проблемных модулей → повтори с шага 5 (тесты перезапускаются)
+
+**Если NEEDS_TEST_FIX** (только TEST_BUG вердикты, код верный):
+- Спавни test-writer агентов только для проблемных тестов
+- Передай им: RFC + конкретные замечания из failure-analysis + что именно в тесте неверно
+- После исправления тестов: повтори тест-раннер и Verification
+
+**Если есть AMBIGUOUS вердикты:**
+- Покажи пользователю: "В RFC неоднозначно описано следующее место: [цитата]"
+- Спроси: уточнить RFC (`/i2c-update-prd` / ручная правка) или принять допущение?
+- При "принять допущение": зафиксируй в JOURNAL.md и продолжи
 
 **Если CRITICAL_GAPS:**
-- RFC не был реализован корректно
-- Возможно план был неверным → предложи пересоздать Implementation Plan (`restart`)
-- Или: Human-in-the-loop (тот же формат что в create-prd)
+- Проверь долю: если FAIL у ≥50% модулей → **HALT_CRITICAL_GAPS**
+- Иначе → предложи пересоздать Implementation Plan (`restart`) или Human-in-the-loop
 
-**После завершения:**
+---
+
+### Терминальные состояния code-rfc
+
+| Состояние | Условие | Сообщение пользователю |
+|---|---|---|
+| **SUCCESS** | Все AC прошли Verification | Список файлов, покрытые AC |
+| **HALT_FAILURE_BUDGET** | `fixes_round >= 2` и NEEDS_FIXES | Что не починилось после 2 раундов; предложи запустить `/i2c-verify-rfc [N]` позже |
+| **HALT_CRITICAL_GAPS** | CRITICAL_GAPS с FAIL у ≥50% модулей | RFC, возможно, не был готов к реализации; предложи пересмотреть RFC |
+| **HALT_DEPENDENCY_DEADLOCK** | Pre-flight обнаружил что depends_on RFC не реализованы | Список незавершённых зависимостей |
+| **HALT_POLICY_VIOLATION** | Coding-агент нарушил ограничения из MEMORY.md | Конкретное нарушение и файл |
+
+При любом HALT: обнови `pipeline_state.json` → `"status": "halted"`, `"halt_reason": "[состояние]"`. Записывать в JOURNAL.md не нужно — только при SUCCESS.
+
+**После завершения (только при SUCCESS):**
 1. Обнови `.i2c/MEMORY.md` — добавь в таблицу "Принятые решения по компонентам": RFC-[N], ключевые решения, отклонения от спеки
-2. Запиши в `.i2c/JOURNAL.md`:
+2. Обнови RTM в `.i2c/MEMORY.md`: для всех строк где RFC = RFC-[N], установи статус `✅ Verified` (если VERIFIED) или `⚠️ Partial` (если были отклонения от AC)
+3. Запиши в `.i2c/JOURNAL.md`:
    ```
    ## [дата] RFC-[N] реализован
    - Implementation Plan: docs/impl/IMPL-[N]-[slug].md

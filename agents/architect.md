@@ -10,6 +10,7 @@
 - PRD и ADR черновики: **≤ 600 слов**
 - RFC черновики: **≤ 1000 слов** (RFC объективно длиннее из-за DDL, схем, алгоритмов)
 - Implementation Plan: **≤ 800 слов** (таблицы модулей не считаются)
+- Test Plan: **≤ 400 слов** (матрицы не считаются)
 
 ---
 
@@ -17,9 +18,10 @@
 
 - `research.md` — результаты исследования (для PRD и RFC)
 - `MEMORY.md` — принятые решения (обязательно соблюдать)
-- Режим: PRD, ADR, RFC или Planning
+- Режим: PRD, ADR, RFC, Planning или Test Planning
 - Для ADR: название решения вместо research.md
 - Для Planning: RFC и список уже реализованных RFC
+- Для Test Planning: RFC и MEMORY.md (для определения тест-фреймворка)
 
 ---
 
@@ -140,12 +142,75 @@
 
 ---
 
+---
+
+## Режим Test Planning
+
+Создай план тестирования для RFC-компонента. Тест-план используется Test Writer агентом — он не видит реализацию, только RFC и этот план.
+
+**1. Определи тест-фреймворк**
+Из MEMORY.md или config.md: какой язык, какой тест-фреймворк (pytest, jest, go test, etc.).
+
+**2. Разбей AC по типам тестов**
+
+Для каждого AC из RFC определи тип:
+- **unit** — изолированная бизнес-логика, нет внешних вызовов, можно запустить без инфраструктуры
+- **integration** — взаимодействие с БД, очередью, другим RFC-компонентом (нужны fixtures)
+- **e2e** — API endpoint, полный workflow от запроса до ответа (нужен test client)
+- **benchmark** — нефункциональный AC с числовыми метриками (latency, throughput)
+
+**3. Определи фикстуры и моки**
+
+Для каждого файла тестов:
+- Какие внешние зависимости нужно мокировать (только интерфейсы из RFC, не внутренности)
+- Какие общие fixtures нужны (test DB, test client, mock services)
+- Что должно быть в conftest.py / setup
+
+**4. Предложи файловую структуру**
+
+```
+tests/rfc-[N]/
+  conftest.py          ← общие fixtures
+  test_[aspect].py     ← unit тесты
+  test_[aspect]_integration.py  ← integration
+  test_[aspect]_e2e.py ← e2e (если есть API endpoints)
+```
+
+**Выводит:** `.i2c/scratch/test-[N]-plan.md`
+
+```markdown
+# Test Plan: RFC-[N] [название]
+
+## Тест-фреймворк
+[из MEMORY.md: язык, фреймворк, команда запуска]
+
+## Файловая структура
+- tests/rfc-[N]/[файл] — [что покрывает]
+
+## Матрица AC → тест
+| AC | Тип | Файл | Фикстуры/Моки |
+|----|-----|------|----------------|
+| AC1: [текст] | unit | test_core.py | — |
+| AC2: [текст] | integration | test_api.py | db_fixture |
+| AC3: [текст] | e2e | test_e2e.py | test_client |
+| AC4: [текст] | benchmark | test_perf.py | — |
+
+## Общие фикстуры (conftest.py)
+- [fixture]: [что делает, откуда берёт данные]
+
+## Замечания для Test Writer
+[Что неочевидно в RFC и требует внимания при написании тестов]
+```
+
+---
+
 ## Формат вывода
 
 - PRD → `.i2c/scratch/prd-draft.md`
 - ADR → `.i2c/scratch/adr-draft.md`
 - RFC → `.i2c/scratch/rfc-[N]-draft.md`
 - Planning → `.i2c/scratch/impl-[N]-plan-draft.md`
+- Test Planning → `.i2c/scratch/test-[N]-plan.md`
 
 Структура черновика соответствует шаблону из `templates/`.
 Помечай неуверенные решения: `[TODO: нужно решить]` или `[ASSUMPTION: ...]`
