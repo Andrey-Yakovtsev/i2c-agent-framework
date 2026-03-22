@@ -572,12 +572,16 @@ RFC зависимые от этого ADR: [список]
 
 Реализовать компонент по RFC. Оркестратор создаёт Implementation Plan, затем делегирует coding-агентам.
 
+**Флаг `--auto`:** если передан аргумент `--auto` (например, `code-rfc 3 --auto`), при делегировании каждому субагенту добавляй в конец промпта фразу: "Авто-режим: выполняй все операции без запроса подтверждения у пользователя." Без флага — стандартный режим.
+
 **Читаешь перед стартом:**
 - `docs/rfc/RFC-[N]-*.md` — спека для реализации
 - `.i2c/MEMORY.md`
 - `.i2c/JOURNAL.md` — какие RFC уже реализованы
 
 **Конвейер:**
+
+> Если флаг `--auto` был передан — добавляй фразу "Авто-режим: выполняй все операции без запроса подтверждения у пользователя." в конец промпта при каждом делегировании субагенту в этом пайплайне.
 
 ### Шаг 0 — Supervisor: Pre-flight
 
@@ -636,6 +640,60 @@ Supervisor проверяет:
 
 Субагент пишет: `.i2c/scratch/impl-[N]-plan-final.md`
 Скопируй в: `docs/impl/IMPL-[N]-[slug].md`
+
+### Шаг 3.5 — Environment Bootstrap
+
+Обнови `pipeline_state.json`: `current_step: "env-bootstrap"`.
+
+**Проверка:** смотри наличие `Dockerfile` или `docker-compose.yml` в корне проекта.
+- Если файлы есть — выполни `docker-compose ps`. Если контейнер поднят и здоров → **пропусти шаг**: добавь `"env-bootstrap"` в `completed_steps`, запиши `env_bootstrap: "skipped (already up)"` в `pipeline_state.json`, переходи к Шагу 4.
+- Если файлов нет или контейнер не отвечает → делегируй bootstrap-агенту.
+
+Делегируй задачу general-purpose субагенту.
+
+Передай ему:
+- Содержимое `.i2c/MEMORY.md` (секция "Технологический стек")
+- Содержимое `docs/impl/IMPL-[N]-[slug].md`
+- Инструкцию:
+
+```
+Задача: подготовить окружение проекта для запуска тестов.
+
+1. Прочитай tech stack из MEMORY.md: язык, фреймворк, пакетный менеджер,
+   Docker base image, тестовая команда.
+   Если поля пустые (—) — определи из существующих файлов проекта
+   (package.json, pyproject.toml, go.mod, Cargo.toml и т.д.).
+
+2. Создай файлы scaffolding если отсутствуют:
+   - Файл зависимостей (package.json / pyproject.toml / go.mod / Cargo.toml)
+   - .dockerignore
+   - Dockerfile (base image из MEMORY.md, установка зависимостей, копирование кода)
+   - docker-compose.yml (сервис app + db/redis если нужны по стеку)
+
+3. Собери образ: docker-compose build
+
+4. Подними контейнер: docker-compose up -d
+
+5. Верификация — запусти тестовую команду из MEMORY.md внутри контейнера:
+   docker-compose exec app [тестовая команда]
+   Ожидаемый результат: команда отрабатывает без ImportError / ModuleNotFoundError /
+   connection refused. Провалы самих тестов (AssertionError) — норма, среда готова.
+
+6. Запиши отчёт в .i2c/scratch/env-bootstrap-[N].md:
+   ## Статус: OK / FAILED
+   ## Созданные файлы: [список]
+   ## Docker image и версии ключевых зависимостей
+   ## Тестовая команда: [команда]
+   ## Вывод (первые 20 строк): [вывод]
+   ## Ошибка (если FAILED): [полный вывод]
+```
+
+Если флаг `--auto` был передан — добавь в конец промпта: "Авто-режим: выполняй все операции без запроса подтверждения у пользователя."
+
+**После bootstrap-агента:** прочитай `.i2c/scratch/env-bootstrap-[N].md`.
+
+- Статус **OK** → добавь `"env-bootstrap"` в `completed_steps`, `current_step: "coding"`. Продолжай Шаг 4.
+- Статус **FAILED** → обнови `pipeline_state.json`: `"status": "halted"`, `"halt_reason": "HALT_ENV_SETUP_FAILED"`. Сообщи пользователю детали из отчёта. Предложи исправить Dockerfile вручную и запустить `/i2c-resume`.
 
 ### Шаг 4 — Параллельный запуск coding-агентов и test-writer агентов
 
@@ -773,6 +831,7 @@ Supervisor проверяет:
 | **HALT_CRITICAL_GAPS** | CRITICAL_GAPS с FAIL у ≥50% модулей | RFC, возможно, не был готов к реализации; предложи пересмотреть RFC |
 | **HALT_DEPENDENCY_DEADLOCK** | Pre-flight обнаружил что depends_on RFC не реализованы | Список незавершённых зависимостей |
 | **HALT_POLICY_VIOLATION** | Coding-агент нарушил ограничения из MEMORY.md | Конкретное нарушение и файл |
+| **HALT_ENV_SETUP_FAILED** | Bootstrap-агент не смог поднять Docker-окружение | Детали из `.i2c/scratch/env-bootstrap-[N].md`; исправь Dockerfile вручную и запусти `/i2c-resume` |
 
 При любом HALT: обнови `pipeline_state.json` → `"status": "halted"`, `"halt_reason": "[состояние]"`. Записывать в JOURNAL.md не нужно — только при SUCCESS.
 
