@@ -135,7 +135,7 @@ fi
 if [[ "$TARGET" == "claude" ]]; then
   # Создаём/обновляем CLAUDE.md в проекте
   CLAUDE_MD="$PROJECT_DIR/CLAUDE.md"
-  IMPORT_LINE="@~/i2c-agent-framework/CLAUDE.md"
+  IMPORT_LINE="@~/.claude/i2c-orchestrator.md"
 
   if [[ -f "$CLAUDE_MD" ]]; then
     if grep -qF "$IMPORT_LINE" "$CLAUDE_MD"; then
@@ -165,26 +165,10 @@ EOF
 
 # --- Target: qwen ---
 elif [[ "$TARGET" == "qwen" ]]; then
-  # Создаём/обновляем QWEN.md в проекте
+  # Создаём/обновляем QWEN.md в проекте (sed-генерация с реальным путём)
   QWEN_MD="$PROJECT_DIR/QWEN.md"
-  IMPORT_LINE="@~/i2c-agent-framework/QWEN.md"
-
-  if [[ -f "$QWEN_MD" ]]; then
-    if grep -qF "$IMPORT_LINE" "$QWEN_MD"; then
-      echo "Пропущен: QWEN.md уже содержит импорт фреймворка"
-    else
-      echo "" >> "$QWEN_MD"
-      echo "$IMPORT_LINE" >> "$QWEN_MD"
-      echo "Обновлён: QWEN.md (добавлен импорт фреймворка)"
-    fi
-  else
-    cat > "$QWEN_MD" << EOF
-# Project Instructions
-
-$IMPORT_LINE
-EOF
-    echo "Создан:  QWEN.md"
-  fi
+  sed "s|~/i2c-agent-framework|${FRAMEWORK_DIR}|g" "$FRAMEWORK_DIR/QWEN.md" > "$QWEN_MD"
+  echo "Сгенерирован: QWEN.md (путь к фреймворку: $FRAMEWORK_DIR)"
 
   # Копируем агентов в .qwen/agents/
   QWEN_AGENTS_DIR="$PROJECT_DIR/.qwen/agents"
@@ -219,9 +203,14 @@ if [[ "$TARGET" == "claude" ]]; then
   echo "  CLAUDE.md                — импорт фреймворка"
   echo "  ~/.claude/commands/      — slash-команды I2C"
 elif [[ "$TARGET" == "qwen" ]]; then
-  echo "  QWEN.md                  — импорт фреймворка"
+  echo "  QWEN.md                  — оркестратор (сгенерирован с реальным путём)"
   echo "  .qwen/agents/            — субагенты I2C"
   echo "  .qwen/commands/          — slash-команды I2C"
+  echo ""
+  echo "Обновление фреймворка (после git pull):"
+  echo "  cd $FRAMEWORK_DIR && git pull"
+  echo "  ./scripts/setup-project.sh --target=qwen $PROJECT_DIR"
+  echo "  (QWEN.md, агенты и команды — физические копии, перезапишутся)"
 fi
 
 echo ""

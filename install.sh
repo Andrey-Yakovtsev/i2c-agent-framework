@@ -3,15 +3,16 @@
 # Creates symlinks in ~/.claude/commands/ and registers the framework globally.
 #
 # Usage: ./install.sh
-# Assumes framework is installed at ~/i2c-agent-framework/
-# If installed elsewhere, create a symlink: ln -s /your/path ~/i2c-agent-framework
+# Works from any installation directory — generates ~/.claude/i2c-orchestrator.md
+# with the real framework path substituted automatically.
 
 set -e
 
 FRAMEWORK_DIR="$(cd "$(dirname "$0")" && pwd)"
 COMMANDS_DIR="$HOME/.claude/commands"
 GLOBAL_CLAUDE="$HOME/.claude/CLAUDE.md"
-IMPORT_LINE="@${FRAMEWORK_DIR}/CLAUDE.md"
+GENERATED="$HOME/.claude/i2c-orchestrator.md"
+IMPORT_LINE="@$HOME/.claude/i2c-orchestrator.md"
 
 echo "I2C Framework installer"
 echo "Framework path: $FRAMEWORK_DIR"
@@ -29,20 +30,25 @@ for f in "$FRAMEWORK_DIR/commands"/i2c-*.md; do
   echo "  ✓ $filename"
 done
 
-# 3. Add framework import to ~/.claude/CLAUDE.md
+# 3. Generate ~/.claude/i2c-orchestrator.md with real framework path
+sed "s|~/i2c-agent-framework|${FRAMEWORK_DIR}|g" "$FRAMEWORK_DIR/CLAUDE.md" > "$GENERATED"
+echo "Сгенерирован: ~/.claude/i2c-orchestrator.md"
+echo "  Путь к фреймворку: $FRAMEWORK_DIR"
+
+# 4. Register import in ~/.claude/CLAUDE.md
 if [ ! -f "$GLOBAL_CLAUDE" ]; then
   echo "" > "$GLOBAL_CLAUDE"
 fi
 
 if grep -qF "$IMPORT_LINE" "$GLOBAL_CLAUDE"; then
   echo ""
-  echo "Framework already registered in $GLOBAL_CLAUDE — skipping."
+  echo "Глобальный CLAUDE.md уже содержит импорт — пропускаю."
 else
   echo "" >> "$GLOBAL_CLAUDE"
   echo "# I2C Framework" >> "$GLOBAL_CLAUDE"
   echo "$IMPORT_LINE" >> "$GLOBAL_CLAUDE"
   echo ""
-  echo "Registered framework in $GLOBAL_CLAUDE"
+  echo "Зарегистрирован импорт в ~/.claude/CLAUDE.md"
 fi
 
 echo ""

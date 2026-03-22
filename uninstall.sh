@@ -21,11 +21,14 @@ else
   echo "No commands directory found — skipping."
 fi
 
-# 2. Remove framework import from ~/.claude/CLAUDE.md
+# 2. Remove generated orchestrator
+rm -f "$HOME/.claude/i2c-orchestrator.md"
+echo "Удалён ~/.claude/i2c-orchestrator.md"
+
+# 3. Remove framework import from ~/.claude/CLAUDE.md
 if [ -f "$GLOBAL_CLAUDE" ]; then
-  # Remove the I2C block (comment line + import line)
   sed -i '' '/^# I2C Framework$/d' "$GLOBAL_CLAUDE"
-  sed -i '' "\|^@${FRAMEWORK_DIR}/CLAUDE.md$|d" "$GLOBAL_CLAUDE"
+  sed -i '' '\|@.*i2c-orchestrator\.md|d' "$GLOBAL_CLAUDE"
   echo "Removed framework import from $GLOBAL_CLAUDE"
 fi
 
