@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker-compose*)",
+      "Bash(docker compose*)",
+      "Bash(pytest*)",
+      "Bash(npm test*)",
+      "Bash(npm run test*)",
+      "Bash(go test*)",
+      "Bash(cargo test*)"
+    ]
+  }
+}
