@@ -12,7 +12,9 @@
       "Bash(for f:*)",
       "Bash(do echo:*)",
       "Read(//Users/andyy/PycharmProjects/i2c-agent-framework/**)",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(bash -n /Users/andyy/PycharmProjects/i2c-agent-framework/install.sh)",
+      "Bash(bash -n /Users/andyy/PycharmProjects/i2c-agent-framework/scripts/setup-project.sh)"
     ]
   }
 }

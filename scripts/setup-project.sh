@@ -187,6 +187,35 @@ elif [[ "$TARGET" == "qwen" ]]; then
     cp "$cmd_file" "$QWEN_COMMANDS_DIR/"
   done
   echo "Скопированы: commands/i2c-*.md → .qwen/commands/"
+
+  # Глобальная регистрация: копируем команды в ~/.qwen/commands/
+  QWEN_GLOBAL_COMMANDS="$HOME/.qwen/commands"
+  mkdir -p "$QWEN_GLOBAL_COMMANDS"
+  for cmd_file in "$FRAMEWORK_DIR/commands"/i2c-*.md; do
+    [[ -f "$cmd_file" ]] || continue
+    cp "$cmd_file" "$QWEN_GLOBAL_COMMANDS/"
+  done
+  echo "Скопированы: commands/i2c-*.md → ~/.qwen/commands/"
+
+  # Глобальная регистрация: генерируем ~/.qwen/i2c-orchestrator.md
+  QWEN_GLOBAL_GENERATED="$HOME/.qwen/i2c-orchestrator.md"
+  sed "s|~/i2c-agent-framework|${FRAMEWORK_DIR}|g" "$FRAMEWORK_DIR/QWEN.md" > "$QWEN_GLOBAL_GENERATED"
+  echo "Сгенерирован: ~/.qwen/i2c-orchestrator.md"
+
+  # Глобальная регистрация: добавляем импорт в ~/.qwen/QWEN.md
+  QWEN_GLOBAL_MD="$HOME/.qwen/QWEN.md"
+  QWEN_IMPORT_LINE="@$HOME/.qwen/i2c-orchestrator.md"
+  if [[ ! -f "$QWEN_GLOBAL_MD" ]]; then
+    echo "" > "$QWEN_GLOBAL_MD"
+  fi
+  if grep -qF "$QWEN_IMPORT_LINE" "$QWEN_GLOBAL_MD"; then
+    echo "Глобальный ~/.qwen/QWEN.md уже содержит импорт — пропускаю."
+  else
+    echo "" >> "$QWEN_GLOBAL_MD"
+    echo "# I2C Framework" >> "$QWEN_GLOBAL_MD"
+    echo "$QWEN_IMPORT_LINE" >> "$QWEN_GLOBAL_MD"
+    echo "Зарегистрирован импорт в ~/.qwen/QWEN.md"
+  fi
 fi
 
 echo ""
@@ -203,14 +232,16 @@ if [[ "$TARGET" == "claude" ]]; then
   echo "  CLAUDE.md                — импорт фреймворка"
   echo "  ~/.claude/commands/      — slash-команды I2C"
 elif [[ "$TARGET" == "qwen" ]]; then
-  echo "  QWEN.md                  — оркестратор (сгенерирован с реальным путём)"
+  echo "  QWEN.md                  — оркестратор проекта (сгенерирован с реальным путём)"
   echo "  .qwen/agents/            — субагенты I2C"
-  echo "  .qwen/commands/          — slash-команды I2C"
+  echo "  .qwen/commands/          — slash-команды I2C (уровень проекта)"
+  echo "  ~/.qwen/commands/        — slash-команды I2C (глобально)"
+  echo "  ~/.qwen/i2c-orchestrator.md — глобальный оркестратор"
   echo ""
   echo "Обновление фреймворка (после git pull):"
   echo "  cd $FRAMEWORK_DIR && git pull"
   echo "  ./scripts/setup-project.sh --target=qwen $PROJECT_DIR"
-  echo "  (QWEN.md, агенты и команды — физические копии, перезапишутся)"
+  echo "  (все физические копии перезапишутся)"
 fi
 
 echo ""

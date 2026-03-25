@@ -32,7 +32,9 @@ Supervisor (pre-flight) → Researcher → Architect → Critic → Writer → S
 
 ## Установка
 
-Один раз на машину:
+Один раз на машину.
+
+### Claude Code
 
 ```bash
 git clone https://github.com/... ~/i2c-agent-framework
@@ -40,19 +42,37 @@ cd ~/i2c-agent-framework
 ./install.sh
 ```
 
-`install.sh` делает две вещи:
+`install.sh` делает:
 - Создаёт symlinks всех `/i2c-*` команд в `~/.claude/commands/`
-- Добавляет `@~/i2c-agent-framework/CLAUDE.md` в `~/.claude/CLAUDE.md`
+- Генерирует `~/.claude/i2c-orchestrator.md` с реальным путём к фреймворку
+- Добавляет импорт в `~/.claude/CLAUDE.md`
 
 После этого все `/i2c-*` команды доступны глобально в любом проекте. Фреймворк обновляется через `git pull` — symlinks подхватывают изменения автоматически.
 
 Для удаления: `./uninstall.sh`
 
+### Qwen Code
+
+```bash
+git clone https://github.com/... ~/i2c-agent-framework
+cd ~/i2c-agent-framework
+./install.sh --target=qwen
+```
+
+`install.sh --target=qwen` делает:
+- Копирует команды в `~/.qwen/commands/` (физические копии)
+- Генерирует `~/.qwen/i2c-orchestrator.md` с реальным путём к фреймворку
+- Добавляет импорт в `~/.qwen/QWEN.md`
+
+После этого перезапусти сессию Qwen Code — команды активируются глобально.
+
+Обновление после `git pull`: запусти `./install.sh --target=qwen` снова (перезапишет копии).
+
 ---
 
 ## Подключение к проекту
 
-### Новый проект
+### Claude Code — новый проект
 
 Открой Claude Code в любой директории и выполни:
 
@@ -62,13 +82,31 @@ cd ~/i2c-agent-framework
 
 Оркестратор задаст вопросы о проекте (название, домен, цель, пользователь, стек, сроки) и создаст `.i2c/` с пустым `MEMORY.md`. Первый шаг — `/i2c-create-prd`.
 
-### Существующий проект
+### Claude Code — существующий проект
 
 ```
 /i2c-setup /path/to/existing/project
 ```
 
 Выбери вариант `[2] Существующий`. Оркестратор запустит Researcher в режиме Discovery: он прочитает структуру проекта, зависимости, конфиги и существующую документацию, затем составит черновик `MEMORY.md` с уже принятыми решениями. Ты подтверждаешь или правишь черновик — после этого `MEMORY.md` заполнен и агенты не будут предлагать альтернативы тому что уже в продакшне. Первый шаг — `/i2c-status`.
+
+### Qwen Code — инициализация проекта
+
+После глобальной установки (`./install.sh --target=qwen`) — инициализируй каждый проект:
+
+```bash
+./scripts/setup-project.sh --target=qwen /path/to/project
+```
+
+Скрипт создаёт:
+- `.i2c/` — стейт фреймворка (config.md, MEMORY.md, GOALS.md, JOURNAL.md, pipeline_state.json)
+- `QWEN.md` — оркестратор проекта (сгенерирован с реальным путём)
+- `.qwen/agents/` — субагенты
+- `.qwen/commands/` — команды уровня проекта
+
+Также обновляет глобальные `~/.qwen/commands/` и `~/.qwen/i2c-orchestrator.md`.
+
+После этого перезапусти сессию Qwen Code и выполни `/i2c-setup /path/to/project` для интерактивного заполнения `config.md`.
 
 `/i2c-setup` добавляет одну строку в `CLAUDE.md` проекта:
 
