@@ -1,7 +1,18 @@
 {
   "permissions": {
     "allow": [
-      "Bash(chmod +x /Users/andyy/PycharmProjects/i2c-agent-framework/install.sh /Users/andyy/PycharmProjects/i2c-agent-framework/uninstall.sh)"
+      "Bash(chmod +x /Users/andyy/PycharmProjects/i2c-agent-framework/install.sh /Users/andyy/PycharmProjects/i2c-agent-framework/uninstall.sh)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:github.com)",
+      "WebSearch",
+      "WebFetch(domain:developer.microsoft.com)",
+      "WebFetch(domain:tessl.io)",
+      "WebFetch(domain:martinfowler.com)",
+      "WebFetch(domain:api.github.com)",
+      "Bash(for f:*)",
+      "Bash(do echo:*)",
+      "Read(//Users/andyy/PycharmProjects/i2c-agent-framework/**)",
+      "Bash(done)"
     ]
   }
 }
