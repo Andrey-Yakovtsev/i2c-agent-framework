@@ -61,7 +61,7 @@ if [[ "$TARGET" == "claude" ]]; then
   done
 
   # 3. Generate ~/.claude/i2c-orchestrator.md with real framework path
-  sed "s|~/i2c-agent-framework|${FRAMEWORK_DIR}|g" "$FRAMEWORK_DIR/CLAUDE.md" > "$GENERATED"
+  sed "s|~/i2c-agent-framework|${FRAMEWORK_DIR}|g" "$FRAMEWORK_DIR/orchestrator-source.md" > "$GENERATED"
   echo "Сгенерирован: ~/.claude/i2c-orchestrator.md"
   echo "  Путь к фреймворку: $FRAMEWORK_DIR"
 
@@ -120,7 +120,7 @@ elif [[ "$TARGET" == "qwen" ]]; then
   done
 
   # 3. Generate ~/.qwen/i2c-orchestrator.md with real framework path
-  sed "s|~/i2c-agent-framework|${FRAMEWORK_DIR}|g" "$FRAMEWORK_DIR/QWEN.md" > "$GENERATED"
+  sed "s|~/i2c-agent-framework|${FRAMEWORK_DIR}|g" "$FRAMEWORK_DIR/orchestrator-source.md" > "$GENERATED"
   echo "Сгенерирован: ~/.qwen/i2c-orchestrator.md"
   echo "  Путь к фреймворку: $FRAMEWORK_DIR"
 

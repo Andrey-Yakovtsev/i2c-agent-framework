@@ -167,7 +167,7 @@ EOF
 elif [[ "$TARGET" == "qwen" ]]; then
   # Создаём/обновляем QWEN.md в проекте (sed-генерация с реальным путём)
   QWEN_MD="$PROJECT_DIR/QWEN.md"
-  sed "s|~/i2c-agent-framework|${FRAMEWORK_DIR}|g" "$FRAMEWORK_DIR/QWEN.md" > "$QWEN_MD"
+  sed "s|~/i2c-agent-framework|${FRAMEWORK_DIR}|g" "$FRAMEWORK_DIR/orchestrator-source.md" > "$QWEN_MD"
   echo "Сгенерирован: QWEN.md (путь к фреймворку: $FRAMEWORK_DIR)"
 
   # Копируем агентов в .qwen/agents/
@@ -199,7 +199,7 @@ elif [[ "$TARGET" == "qwen" ]]; then
 
   # Глобальная регистрация: генерируем ~/.qwen/i2c-orchestrator.md
   QWEN_GLOBAL_GENERATED="$HOME/.qwen/i2c-orchestrator.md"
-  sed "s|~/i2c-agent-framework|${FRAMEWORK_DIR}|g" "$FRAMEWORK_DIR/QWEN.md" > "$QWEN_GLOBAL_GENERATED"
+  sed "s|~/i2c-agent-framework|${FRAMEWORK_DIR}|g" "$FRAMEWORK_DIR/orchestrator-source.md" > "$QWEN_GLOBAL_GENERATED"
   echo "Сгенерирован: ~/.qwen/i2c-orchestrator.md"
 
   # Глобальная регистрация: добавляем импорт в ~/.qwen/QWEN.md

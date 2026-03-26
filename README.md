@@ -328,6 +328,18 @@ cd /path/to/i2c-agent-framework
 git pull
 ```
 
+### Правки оркестратора
+
+Все изменения инструкций (новые шаги, правки команд, новые агенты) делай в `orchestrator-source.md`.
+После правок задеплой:
+
+```bash
+./install.sh              # Claude Code
+./install.sh --target=qwen  # Qwen Code
+```
+
+`~/.claude/i2c-orchestrator.md` — сгенерированный файл, не редактируй его напрямую: изменения потеряются при следующем `./install.sh`.
+
 ### Claude Code проекты
 
 После `git pull` перегенерируй оркестратор с обновлённым содержимым:
@@ -438,7 +450,6 @@ your-project/
 ```
 ~/i2c-agent-framework/
   CLAUDE.md                — инструкции оркестратора (полный playbook)
-  WHO_AM_I.md              — identity и принципы фреймворка
   install.sh               — установка: symlinks + глобальная регистрация
   uninstall.sh             — удаление
   agents/
