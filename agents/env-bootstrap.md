@@ -29,13 +29,23 @@ tools: [read_file, write_file, execute_command, list_files]
    ```
    Ожидаемый результат: команда отрабатывает без `ImportError` / `ModuleNotFoundError` / `connection refused`. Провалы самих тестов (`AssertionError`) — норма, среда готова.
 
-6. **Запиши отчёт** в `.i2c/scratch/env-bootstrap-[N].md`:
+6. **Сканирование зависимостей на уязвимости** — запусти подходящий инструмент по стеку:
+   - Python: `docker-compose exec app pip-audit` (если установлен) или `docker-compose exec app pip list --format=json | safety check --stdin`
+   - Node.js: `docker-compose exec app npm audit --audit-level=high`
+   - Go: `docker-compose exec app govulncheck ./...`
+   - Rust: `docker-compose exec app cargo audit`
+
+   Если инструмент недоступен — пропусти шаг, запиши `"vuln_scan": "skipped (tool not available)"` в отчёт.
+   Если найдены **CRITICAL или HIGH** уязвимости — включи их список в отчёт, статус остаётся OK (не блокирует), но оркестратор покажет предупреждение пользователю.
+
+7. **Запиши отчёт** в `.i2c/scratch/env-bootstrap-[N].md`:
    ```markdown
    ## Статус: OK / FAILED
    ## Созданные файлы: [список]
    ## Docker image и версии ключевых зависимостей
    ## Тестовая команда: [команда]
    ## Вывод (первые 20 строк): [вывод]
+   ## Уязвимости зависимостей: skipped / none / [список CRITICAL/HIGH]
    ## Ошибка (если FAILED): [полный вывод]
    ```
 

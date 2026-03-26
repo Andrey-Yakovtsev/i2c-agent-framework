@@ -526,19 +526,37 @@ API Contract
 - `.i2c/MEMORY.md`
 - Все RFC которые используют это решение
 
+**Классификация изменения (обязательно перед предупреждением):**
+
+Перед запуском конвейера — определи тип изменения на основе описания:
+
+| Тип | Признаки |
+|-----|---------|
+| `additive` | Добавляются новые опции / возможности; существующее поведение не меняется |
+| `breaking` | Меняется интерфейс, переименовывается сущность, меняется семантика принятого решения |
+| `deprecation` | Старое решение помечается устаревшим, вводится замена |
+
+Покажи тип вместе с предупреждением.
+
 **Предупреждение пользователю перед стартом:**
 ```
-⚠️ Пересмотр ADR-[N] может сломать консистентность RFC которые на него опираются.
+⚠️ Пересмотр ADR-[N] — тип изменения: [additive / breaking / deprecation]
 RFC зависимые от этого ADR: [список]
+
+[Если breaking]: Это BREAKING изменение. После принятия все зависимые RFC нужно пересмотреть.
+[Если additive]: Существующие RFC не должны сломаться, но проверь список ниже.
+[Если deprecation]: Укажи версию/дату когда старое решение перестанет поддерживаться.
+
 Продолжить?
 ```
 Жди подтверждения.
 
 **Конвейер:** Architect → Critic → Writer → Supervisor (без Researcher).
 После ACCEPTED:
-1. Обновляет `docs/ADR-[N]-*.md` (добавляет секцию `## История изменений`)
+1. Обновляет `docs/ADR-[N]-*.md` (добавляет секцию `## История изменений` с типом изменения)
 2. Обновляет `.i2c/MEMORY.md`
-3. Проверяет RFC на консистентность — выводит список RFC которые нужно пересмотреть
+3. Если тип `breaking` — добавляет все зависимые RFC в секцию "Технический долг" MEMORY.md с пометкой "Требует пересмотра после ADR-[N] rev."
+4. Выводит список RFC которые нужно пересмотреть
 
 ---
 
@@ -631,7 +649,12 @@ Supervisor проверяет:
 
 **После bootstrap-агента:** прочитай `.i2c/scratch/env-bootstrap-[N].md`.
 
-- Статус **OK** → добавь `"env-bootstrap"` в `completed_steps`, `current_step: "coding"`. Продолжай Шаг 4.
+- Статус **OK** → добавь `"env-bootstrap"` в `completed_steps`, `current_step: "coding"`.
+  - Если в отчёте есть `Уязвимости зависимостей` с CRITICAL или HIGH — выведи пользователю предупреждение:
+    ```
+    ⚠️ Найдены уязвимости в зависимостях: [список]. Реализация продолжается, но стоит обновить зависимости до деплоя.
+    ```
+  - Продолжай Шаг 4.
 - Статус **FAILED** → обнови `pipeline_state.json`: `"status": "halted"`, `"halt_reason": "HALT_ENV_SETUP_FAILED"`. Сообщи пользователю детали из отчёта. Предложи исправить Dockerfile вручную и запустить `/i2c-resume`.
 
 ### Шаг 4 — Параллельный запуск coding-агентов и test-writer агентов
@@ -777,14 +800,18 @@ Supervisor проверяет:
 **После завершения (только при SUCCESS):**
 1. Обнови `.i2c/MEMORY.md` — добавь в таблицу "Принятые решения по компонентам": RFC-[N], ключевые решения, отклонения от спеки
 2. Обнови RTM в `.i2c/MEMORY.md`: для всех строк где RFC = RFC-[N], установи статус `✅ Verified` (если VERIFIED) или `⚠️ Partial` (если были отклонения от AC)
-3. Запиши в `.i2c/JOURNAL.md`:
+3. Если были отклонения от AC или отклонения от RFC — добавь записи в секцию "Технический долг" в `.i2c/MEMORY.md`:
+   ```
+   | [авто-ID] | [описание отклонения] | RFC-[N] | medium | [дата] |
+   ```
+4. Запиши в `.i2c/JOURNAL.md`:
    ```
    ## [дата] RFC-[N] реализован
    - Implementation Plan: docs/impl/IMPL-[N]-[slug].md
    - Файлы: [список]
    - AC: [N/M прошли]
    - Отклонения от RFC: [если были]
-   - Tech debt: [если есть]
+   - Tech debt: [если есть — ID записей из MEMORY.md]
    ```
 
 ---
@@ -867,6 +894,241 @@ MEMORY.md нельзя оставить пустым — агенты начну
 - `JOURNAL.md`: добавь первую запись с датой подключения и списком пунктов `[ВЫВЕДЕНО]`
 
 Сообщи пользователю: создано `.i2c/`, MEMORY.md заполнен из аудита. Следующий шаг: `/i2c-status`.
+
+---
+
+## Команда: `patch-rfc [N]`
+
+Обновить реализацию компонента после изменения RFC. Работает на дельте: анализирует что изменилось между текущим RFC и оригинальным IMPL-планом, запускает coding-агентов только для изменённых частей, прогоняет полный тест-сюит для обнаружения регрессий.
+
+**Когда использовать:** RFC изменился после `code-rfc` — добавились новые AC или поменялся интерфейс.
+**Отличие от `code-rfc`:** не пересоздаёт план с нуля, не поднимает окружение, не пишет тесты для уже покрытых AC.
+
+**Флаг `--auto`:** работает как в `code-rfc` — отключает запросы подтверждений.
+
+**Читаешь перед стартом:**
+- `docs/rfc/RFC-[N]-*.md` — текущий (обновлённый) RFC
+- `docs/impl/IMPL-[N]-*.md` — оригинальный Implementation Plan
+- `.i2c/scratch/impl-[N]-verification.md` — последний Verification-отчёт (если существует)
+- `.i2c/MEMORY.md`
+- `.i2c/JOURNAL.md` — статус RFC-[N]
+
+> Если флаг `--auto` был передан — добавляй `mode: "bypassPermissions"` при каждом запуске субагента в этом пайплайне.
+> Без флага `--auto` — добавляй `mode: "dontAsk"` при каждом запуске субагента.
+
+### Шаг 0 — Supervisor: Pre-flight
+
+Обнови `pipeline_state.json`: `command: "patch-rfc"`, `argument: "[N]"`, `current_step: "supervisor-preflight"`.
+Запусти субагент с промптом из `~/i2c-agent-framework/agents/supervisor.md` в режиме Pre-flight.
+
+Передай ему:
+- Описание: "patch-rfc: обновление реализации RFC-[N] после изменения RFC"
+- Текущий `docs/rfc/RFC-[N]-*.md`
+- `docs/impl/IMPL-[N]-*.md` (оригинальный план)
+- `.i2c/scratch/impl-[N]-verification.md` (если существует)
+- Содержимое `.i2c/MEMORY.md`
+- Последние записи из `.i2c/JOURNAL.md` для RFC-[N]
+
+Supervisor проверяет:
+- `docs/impl/IMPL-[N]-*.md` не существует → **SKIP**: "RFC-[N] не был реализован через `code-rfc`. Запусти `/i2c-code-rfc [N]`."
+- JOURNAL.md не содержит записи о реализации RFC-[N] → **CLARIFY**: уточни статус
+- RFC не изменился относительно IMPL (нет реальной дельты) → **SKIP**: "Патч не нужен — изменений нет."
+- Предыдущий запуск завершился HALT → **CLARIFY**: "Предыдущая реализация завершилась с ошибкой. Рекомендуется сначала `/i2c-verify-rfc [N]`."
+
+Вердикты: см. «Вердикты Supervisor Pre-flight». При APPROVE — передай подсказки Architect.
+
+### Шаг 1 — Architect: Patch Planning
+
+Обнови `pipeline_state.json`: добавь `"supervisor-preflight"` в `completed_steps`, `current_step: "architect-patch-planning"`.
+Запусти субагент с промптом из `~/i2c-agent-framework/agents/architect.md`.
+
+Передай ему:
+- Текущий `docs/rfc/RFC-[N]-*.md`
+- `docs/impl/IMPL-[N]-*.md`
+- `.i2c/scratch/impl-[N]-verification.md` (если существует)
+- Содержимое `.i2c/MEMORY.md`
+- Подсказки от Supervisor (если были)
+- Режим: "Patch Planning"
+
+Субагент пишет: `.i2c/scratch/patch-[N]-plan.md`
+Обнови `pipeline_state.json`: `scratch_files.patch_plan: ".i2c/scratch/patch-[N]-plan.md"`.
+
+### Шаг 2 — Critic (Planning mode)
+
+Обнови `pipeline_state.json`: добавь `"architect-patch-planning"` в `completed_steps`, `current_step: "critic-patch-planning"`.
+Запусти субагент с промптом из `~/i2c-agent-framework/agents/critic.md`.
+
+Передай ему:
+- `.i2c/scratch/patch-[N]-plan.md`
+- `docs/rfc/RFC-[N]-*.md` (для сверки: все new_ac покрыты задачами?)
+- `docs/impl/IMPL-[N]-*.md` (для сверки: changed_interface затрагивает правильные файлы?)
+- Содержимое `.i2c/MEMORY.md`
+- Режим: "Planning"
+
+Дополнительная инструкция Critic: проверить что ни одна задача не **перезаписывает** вместо расширения; что unchanged-модули явно перечислены как "пропустить"; что регрессионный риск оценён для каждого `changed_interface`.
+
+Субагент пишет: `.i2c/scratch/patch-[N]-plan-review.md`
+Обнови `pipeline_state.json`: `scratch_files.patch_plan_review: ".i2c/scratch/patch-[N]-plan-review.md"`.
+
+### Шаг 3 — Writer (финализация Patch Plan)
+
+Обнови `pipeline_state.json`: добавь `"critic-patch-planning"` в `completed_steps`, `current_step: "writer"`.
+Запусти субагент с промптом из `~/i2c-agent-framework/agents/writer.md`.
+
+Передай ему:
+- `.i2c/scratch/patch-[N]-plan.md`
+- `.i2c/scratch/patch-[N]-plan-review.md`
+- Содержимое `.i2c/MEMORY.md`
+
+> Writer не использует шаблон IMPL.md — структура Patch Plan определена в `agents/architect.md`.
+
+Субагент пишет: `.i2c/scratch/patch-[N]-plan-final.md`
+Обнови `pipeline_state.json`: `scratch_files.patch_plan_final: ".i2c/scratch/patch-[N]-plan-final.md"`.
+
+**Patch Plan не копируется в `docs/impl/`** — это scratch-артефакт. `IMPL-[N]-*.md` будет обновлён после SUCCESS.
+
+### Шаг 4 — Параллельный запуск coding-агентов и test-writer агентов
+
+Обнови `pipeline_state.json`: добавь `"writer"` в `completed_steps`, `current_step: "coding"`.
+
+Прочитай `.i2c/scratch/patch-[N]-plan-final.md`.
+
+**Запускай в одном сообщении — только для дельты:**
+
+```
+Группа A — coding-агенты (только new_ac и changed_interface из Patch Plan):
+  Для каждой задачи из patch-[N]-plan-final.md:
+    Запусти субагент (general-purpose):
+      - Прочитай RFC: docs/rfc/RFC-[N]-*.md
+      - Прочитай MEMORY.md: .i2c/MEMORY.md
+      - Твоя задача: [задача из Patch Plan]
+      - Затронутые файлы: [список из Patch Plan]
+      - НЕ ТРОГАЙ: [unchanged-модули из раздела "Без изменений"]
+      - Расширяй существующий код, не перезаписывай
+      - После завершения: запиши отчёт в .i2c/scratch/patch-[N]-module-[M]-report.md
+
+Группа B — test-writer агенты (только для new_ac):
+  Для каждого new_ac из patch-[N]-plan-final.md:
+    Запусти субагент с промптом из ~/i2c-agent-framework/agents/test-writer.md:
+      - Прочитай RFC: docs/rfc/RFC-[N]-*.md
+      - Прочитай MEMORY.md: .i2c/MEMORY.md
+      - Прочитай patch plan: .i2c/scratch/patch-[N]-plan-final.md
+      - Пиши тесты только для new_ac указанных в Patch Plan
+      - Добавляй в существующий тест-файл, не создавай новый если файл уже существует
+      - НЕ читай файлы реализации
+      - После завершения: запиши отчёт в .i2c/scratch/patch-[N]-test-report.md
+```
+
+Дождись завершения всех агентов.
+
+**После завершения — запусти ПОЛНЫЙ тест-сюит:**
+
+```
+Запусти субагент (general-purpose):
+  - Выполни все тесты: [команда из MEMORY.md, например: pytest tests/rfc-[N]/]
+  - Включает старые тесты (регрессия) И новые тесты (new_ac)
+  - Запиши результаты в .i2c/scratch/patch-[N]-test-results.md
+  Формат:
+    | Тест | AC | Тип (existing/new) | Статус | Stacktrace (при FAIL) |
+    |------|----|--------------------|--------|-----------------------|
+```
+
+Обнови `pipeline_state.json`: `scratch_files.test_results: ".i2c/scratch/patch-[N]-test-results.md"`.
+
+### Шаг 5 — Анализ тестов + Verification
+
+Обнови `pipeline_state.json`: добавь `"coding"` в `completed_steps`, `current_step: "critic-verification"`.
+
+#### 5a — Failure Analyst (если есть упавшие тесты)
+
+Прочитай `.i2c/scratch/patch-[N]-test-results.md`.
+
+Если есть FAIL — для каждого запусти субагент с промптом из `~/i2c-agent-framework/agents/failure-analyst.md` параллельно:
+
+```
+Для каждого FAIL:
+  Передай субагенту:
+    - docs/rfc/RFC-[N]-*.md
+    - Код упавшего теста
+    - Stacktrace из test-results.md
+    - Соответствующий файл реализации
+    - Текст AC из RFC
+    - Тип теста: existing (был до патча) или new (написан в этом пайплайне)
+```
+
+Дополнительный контекст для Failure Analyst: `existing`-тест FAIL с вердиктом CODE_BUG = регрессия, введённая патчем.
+
+Все агенты пишут блоки в: `.i2c/scratch/patch-[N]-failure-analysis.md`
+
+Если все тесты PASS — пропусти шаг.
+
+#### 5b — Critic (Verification)
+
+Запусти субагент с промптом из `~/i2c-agent-framework/agents/critic.md`.
+
+Передай ему:
+- `docs/rfc/RFC-[N]-*.md` (обновлённый RFC — истина)
+- `.i2c/scratch/patch-[N]-plan-final.md`
+- Все `patch-[N]-module-*-report.md`
+- `.i2c/scratch/patch-[N]-test-results.md`
+- `.i2c/scratch/patch-[N]-failure-analysis.md` (если были падения)
+- Режим: "Verification"
+
+Инструкция Critic:
+- Сверяй против обновлённого RFC, не оригинального IMPL
+- `existing`-тест FAIL + CODE_BUG → регрессия, блокирует
+- `new`-тест FAIL + CODE_BUG → неполная реализация new_ac, блокирует
+- TEST_BUG (любой тип) → не блокирует код
+- unchanged-AC не проверяй заново (они были VERIFIED ранее и не менялись)
+
+Пишет: `.i2c/scratch/patch-[N]-verification.md`
+
+#### 5c — Обработка вердиктов
+
+**Если VERIFIED** → терминальное состояние **SUCCESS**.
+
+**Если NEEDS_FIXES** (CODE_BUG):
+- Увеличь `fixes_round` на 1
+- **Если `fixes_round >= 2`** → **HALT_FAILURE_BUDGET**
+- **Иначе** — покажи список, спавни coding-агентов для проблемных задач → повтори с шага 5
+
+**Если NEEDS_TEST_FIX** (только TEST_BUG):
+- Спавни test-writer для проблемных тестов + замечания из failure-analysis
+- После исправления: повтори тест-раннер и Verification
+
+**Если CRITICAL_GAPS** (FAIL у ≥50% задач патча) → **HALT_CRITICAL_GAPS**
+
+---
+
+### Терминальные состояния patch-rfc
+
+| Состояние | Условие | Сообщение пользователю |
+|---|---|---|
+| **SUCCESS** | Все new_ac и changed_interface verified, регрессий нет | Список изменённых файлов, покрытые AC |
+| **HALT_FAILURE_BUDGET** | `fixes_round >= 2` + NEEDS_FIXES | Что не починилось; предложи `/i2c-verify-rfc [N]` |
+| **HALT_CRITICAL_GAPS** | FAIL у ≥50% задач патча | Патч-план некорректен; предложи пересмотреть дельту вручную |
+
+При любом HALT: обнови `pipeline_state.json` → `"status": "halted"`, `"halt_reason": "[состояние]"`.
+
+**После завершения (только при SUCCESS):**
+1. Обнови `pipeline_state.json`: `"status": "done"`.
+2. Обнови `docs/impl/IMPL-[N]-*.md`: добавь секцию `## История изменений`:
+   ```
+   ### [дата] Патч
+   - Новые AC: [список]
+   - Изменённые интерфейсы: [список]
+   - Изменённые файлы: [список]
+   ```
+3. Обнови RTM в `.i2c/MEMORY.md`: для новых AC установи статус `✅ Verified`.
+4. Запиши в `.i2c/JOURNAL.md`:
+   ```
+   ## [дата] RFC-[N] пропатчен
+   - Новые AC: [список]
+   - Изменённые интерфейсы: [список]
+   - Изменённые файлы: [список]
+   - Регрессий: нет / [N исправлено]
+   ```
+5. Сообщи пользователю: патч применён, список изменённых файлов, покрытые новые AC.
 
 ---
 
