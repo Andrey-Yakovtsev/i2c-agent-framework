@@ -10,4 +10,4 @@
 Если `$ARGUMENTS` пуст — спроси пользователя: "Введи название компонента для RFC (например: 'Core Data Model', 'Auth Service', 'Payment Pipeline'):"
 Дождись ответа и используй его как аргумент.
 
-Выполни команду I2C `create-rfc $ARGUMENTS` из инструкций оркестратора.
+Прочитай файл {{FRAMEWORK_DIR}}/orchestrator-installed.md (используй Read tool) и выполни команду `create-rfc $ARGUMENTS` по инструкциям из этого файла.

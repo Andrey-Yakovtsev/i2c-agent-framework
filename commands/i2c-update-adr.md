@@ -10,4 +10,4 @@
 Если `$ARGUMENTS` пуст — спроси пользователя: "Введи номер ADR и описание изменений (например: '2 Переходим с PostgreSQL на CockroachDB'):"
 Дождись ответа и используй его как аргумент.
 
-Выполни команду I2C `update-adr $ARGUMENTS` из инструкций оркестратора.
+Прочитай файл {{FRAMEWORK_DIR}}/orchestrator-installed.md (используй Read tool) и выполни команду `update-adr $ARGUMENTS` по инструкциям из этого файла.

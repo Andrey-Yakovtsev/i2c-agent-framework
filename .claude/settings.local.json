@@ -15,7 +15,13 @@
       "Bash(done)",
       "Bash(bash -n /Users/andyy/PycharmProjects/i2c-agent-framework/install.sh)",
       "Bash(bash -n /Users/andyy/PycharmProjects/i2c-agent-framework/scripts/setup-project.sh)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(chmod:*)",
+      "Bash(ls -la /Users/andyy/.claude/commands/i2c-*.md)",
+      "Bash(mkdir -p /tmp/test-i2c-project)",
+      "Bash(/Users/andyy/PycharmProjects/i2c-agent-framework/install.sh /tmp/test-i2c-project)",
+      "Bash(/Users/andyy/PycharmProjects/i2c-agent-framework/install.sh --target=qwen /tmp/test-i2c-project)",
+      "Bash(ls /Users/andyy/.claude/commands/i2c-*.md)"
     ]
   }
 }

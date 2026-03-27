@@ -1,3 +1,3 @@
-# I2C Framework — Orchestrator Instructions
+# I2C Agent Framework
 
-@/Users/andyy/.claude/i2c-orchestrator.md
+Documentation orchestration framework. Install into a project: `./install.sh /path/to/project`
