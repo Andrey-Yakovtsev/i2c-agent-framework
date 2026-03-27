@@ -26,6 +26,7 @@ Supervisor (pre-flight) → Researcher → Architect → Critic → Writer → S
 8. [Структура файлов проекта](#структура-файлов-проекта)
 9. [Структура фреймворка](#структура-фреймворка)
 10. [Принципы](#принципы)
+11. [Сравнение с другими фреймворками](#сравнение-с-другими-фреймворками)
 
 ---
 
@@ -289,6 +290,10 @@ i2c-agent-framework/
     writer.md
     test-writer.md
     failure-analyst.md
+  protocols/                 ← переиспользуемые протоколы конвейеров
+    create-pipeline.md
+    code-pipeline.md
+    verification-cycle.md
   commands/                  ← шаблоны команд (с {{FRAMEWORK_DIR}})
     i2c-setup.md
     i2c-create-prd.md
@@ -328,3 +333,15 @@ i2c-agent-framework/
 **Supervisor — привратник.** Документ попадает в `docs/` только после ACCEPTED.
 
 **Код и спека идут параллельно.** `code-rfc` не ждёт создания всех RFC — только принятия конкретного RFC и верификации его зависимостей.
+
+---
+
+## Сравнение с другими фреймворками
+
+Подробное сравнение I2C с [Spec Kit](https://github.com/github/spec-kit) (GitHub, 83K stars) и [BMAD-METHOD](https://github.com/bmad-code-org/BMAD-METHOD) (42K stars): **[COMPARISON.md](COMPARISON.md)**
+
+Коротко — что уникально в I2C:
+- **Verification Cycle** — тесты пишутся из RFC (не из кода), Failure Analyst классифицирует падения. Конкуренты не имеют аналога.
+- **Pipeline resume** — `pipeline_state.json` позволяет продолжить с точки прерывания. Spec Kit и BMAD теряют контекст.
+- **MEMORY.md как закон** — принятые решения не переоткрываются. Предотвращает архитектурный дрейф.
+- **Обязательный Critic** — ни один черновик не финализируется без критического разбора.
