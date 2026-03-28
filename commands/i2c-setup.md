@@ -7,4 +7,4 @@
 **Аргументы:** не требуются.
 **Пример:** `/i2c-setup`
 
-Прочитай файл {{FRAMEWORK_DIR}}/orchestrator-installed.md (используй Read tool) и выполни команду `setup` по инструкциям из этого файла.
+Прочитай файл {{FRAMEWORK_DIR}}/orchestrator.md (используй Read tool) и выполни команду `setup` по инструкциям из этого файла.

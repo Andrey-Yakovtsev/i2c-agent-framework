@@ -10,4 +10,4 @@
 Если `$ARGUMENTS` пуст — спроси пользователя: "Введи номер ADR и описание изменений (например: '2 Переходим с PostgreSQL на CockroachDB'):"
 Дождись ответа и используй его как аргумент.
 
-Прочитай файл {{FRAMEWORK_DIR}}/orchestrator-installed.md (используй Read tool) и выполни команду `update-adr $ARGUMENTS` по инструкциям из этого файла.
+Прочитай файл {{FRAMEWORK_DIR}}/orchestrator.md (используй Read tool) и выполни команду `update-adr $ARGUMENTS` по инструкциям из этого файла.

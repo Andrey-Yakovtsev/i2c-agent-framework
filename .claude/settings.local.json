@@ -21,7 +21,10 @@
       "Bash(mkdir -p /tmp/test-i2c-project)",
       "Bash(/Users/andyy/PycharmProjects/i2c-agent-framework/install.sh /tmp/test-i2c-project)",
       "Bash(/Users/andyy/PycharmProjects/i2c-agent-framework/install.sh --target=qwen /tmp/test-i2c-project)",
-      "Bash(ls /Users/andyy/.claude/commands/i2c-*.md)"
+      "Bash(ls /Users/andyy/.claude/commands/i2c-*.md)",
+      "Bash(for dir:*)",
+      "Bash(wc:*)",
+      "Bash(/Users/andyy/PycharmProjects/i2c-agent-framework/install.sh /tmp/test-i2c-project --target=claude)"
     ]
   }
 }

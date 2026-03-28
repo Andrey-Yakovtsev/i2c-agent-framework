@@ -1,6 +1,7 @@
 #!/bin/bash
 # I2C Framework — Project Installation Script
 # Installs the framework into a specific project directory.
+# Framework is fully embedded into the project — no external dependencies.
 #
 # Usage:
 #   ./install.sh /path/to/project                  # Claude Code (default)
@@ -76,18 +77,45 @@ echo "  Target:    $TARGET"
 echo ""
 
 # ============================================================
-# Step 1: Generate orchestrator-installed.md in framework dir
+# Step 1: Embed framework into project (.i2c/framework/)
 # ============================================================
-echo "Generating orchestrator-installed.md ..."
-sed "s|~/i2c-agent-framework|${FRAMEWORK_DIR}|g" \
-  "$FRAMEWORK_DIR/orchestrator-source.md" > "$FRAMEWORK_DIR/orchestrator-installed.md"
-echo "  ✓ $FRAMEWORK_DIR/orchestrator-installed.md"
+I2C_DIR="$PROJECT_DIR/.i2c"
+FRAMEWORK_DEST="$I2C_DIR/framework"
+
+echo "Embedding framework into .i2c/framework/ ..."
+rm -rf "$FRAMEWORK_DEST"
+mkdir -p "$FRAMEWORK_DEST"
+
+# Copy framework components
+cp -r "$FRAMEWORK_DIR/agents"      "$FRAMEWORK_DEST/agents"
+cp -r "$FRAMEWORK_DIR/protocols"   "$FRAMEWORK_DEST/protocols"
+cp -r "$FRAMEWORK_DIR/templates"   "$FRAMEWORK_DEST/templates"
+cp -r "$FRAMEWORK_DIR/diagnostics" "$FRAMEWORK_DEST/diagnostics"
+
+# Generate orchestrator with project-relative paths
+sed "s|~/i2c-agent-framework|.i2c/framework|g" \
+  "$FRAMEWORK_DIR/orchestrator-source.md" > "$FRAMEWORK_DEST/orchestrator.md"
+
+# For QWEN: also embed the full QWEN orchestrator
+if [[ "$TARGET" == "qwen" ]]; then
+  sed "s|~/i2c-agent-framework|.i2c/framework|g" \
+    "$FRAMEWORK_DIR/QWEN.md" > "$FRAMEWORK_DEST/QWEN.md"
+fi
+
+# Replace all external path references in copied files
+find "$FRAMEWORK_DEST" -name "*.md" -exec sed -i '' "s|~/i2c-agent-framework|.i2c/framework|g" {} +
+
+# Write meta-information for framework-update command
+echo "$FRAMEWORK_DIR" > "$FRAMEWORK_DEST/.source"
+(cd "$FRAMEWORK_DIR" && git rev-parse --short HEAD 2>/dev/null || echo "unknown") > "$FRAMEWORK_DEST/VERSION"
+
+echo "  ✓ agents/ protocols/ templates/ diagnostics/ orchestrator.md"
+echo "  ✓ VERSION: $(cat "$FRAMEWORK_DEST/VERSION")"
 
 # ============================================================
 # Step 2: Create .i2c/ skeleton in project (if not exists)
 # ============================================================
-I2C_DIR="$PROJECT_DIR/.i2c"
-if [[ ! -d "$I2C_DIR" ]]; then
+if [[ ! -f "$I2C_DIR/config.md" ]]; then
   echo ""
   echo "Creating .i2c/ skeleton ..."
   mkdir -p "$I2C_DIR/scratch"
@@ -117,7 +145,7 @@ CONFIGEOF
 
   echo "  ✓ .i2c/ created with templates"
 else
-  echo ".i2c/ already exists — skipping skeleton creation."
+  echo ".i2c/ state already exists — preserving."
 fi
 
 # ============================================================
@@ -130,7 +158,7 @@ echo ""
 echo "Generating commands in $PROJECT_DIR/$TARGET_DIR/commands/ ..."
 for f in "$FRAMEWORK_DIR/commands"/i2c-*.md; do
   filename="$(basename "$f")"
-  sed "s|{{FRAMEWORK_DIR}}|${FRAMEWORK_DIR}|g" "$f" > "$COMMANDS_DIR/$filename"
+  sed "s|{{FRAMEWORK_DIR}}|.i2c/framework|g" "$f" > "$COMMANDS_DIR/$filename"
   echo "  ✓ $filename"
 done
 
@@ -142,6 +170,26 @@ if [[ "$TARGET" == "claude" ]]; then
   if [[ ! -f "$SETTINGS_FILE" ]]; then
     cp "$FRAMEWORK_DIR/templates/claude-settings.json" "$SETTINGS_FILE"
     echo "  ✓ .claude/settings.json"
+  fi
+fi
+
+# ============================================================
+# Step 4b: Update project QWEN.md reference (Qwen only)
+# ============================================================
+if [[ "$TARGET" == "qwen" ]]; then
+  PROJECT_QWEN="$PROJECT_DIR/QWEN.md"
+  if [[ -f "$PROJECT_QWEN" ]]; then
+    if grep -q "@.*i2c-agent-framework" "$PROJECT_QWEN"; then
+      sed -i '' "s|@.*i2c-agent-framework/QWEN.md|@.i2c/framework/QWEN.md|g" "$PROJECT_QWEN"
+      echo "  ✓ Updated QWEN.md reference → @.i2c/framework/QWEN.md"
+    elif ! grep -q "@.i2c/framework/QWEN.md" "$PROJECT_QWEN"; then
+      echo "" >> "$PROJECT_QWEN"
+      echo "@.i2c/framework/QWEN.md" >> "$PROJECT_QWEN"
+      echo "  ✓ Added @.i2c/framework/QWEN.md to QWEN.md"
+    fi
+  else
+    printf "# Project Instructions\n\n@.i2c/framework/QWEN.md\n" > "$PROJECT_QWEN"
+    echo "  ✓ Created QWEN.md with @.i2c/framework/QWEN.md"
   fi
 fi
 
@@ -212,6 +260,7 @@ fi
 # ============================================================
 echo ""
 echo "✅ I2C Framework installed in $PROJECT_DIR (target: $TARGET)."
+echo "   Framework embedded in .i2c/framework/ — no external dependencies."
 echo ""
 echo "Next steps:"
 echo "  1. Open $TARGET in your project directory"

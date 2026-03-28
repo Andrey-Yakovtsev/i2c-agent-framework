@@ -10,4 +10,4 @@
 Если `$ARGUMENTS` пуст — спроси пользователя: "Введи номер RFC для верификации (например: '3'):"
 Дождись ответа и используй его как аргумент.
 
-Прочитай файл {{FRAMEWORK_DIR}}/orchestrator-installed.md (используй Read tool) и выполни команду `verify-rfc $ARGUMENTS` по инструкциям из этого файла.
+Прочитай файл {{FRAMEWORK_DIR}}/orchestrator.md (используй Read tool) и выполни команду `verify-rfc $ARGUMENTS` по инструкциям из этого файла.

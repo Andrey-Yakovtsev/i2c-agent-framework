@@ -12,4 +12,4 @@
 Если `$ARGUMENTS` пуст — спроси пользователя: "Введи номер RFC для патча (и опционально --auto), например: '3' или '3 --auto':"
 Дождись ответа и используй его как аргумент.
 
-Прочитай файл {{FRAMEWORK_DIR}}/orchestrator-installed.md (используй Read tool) и выполни команду `patch-rfc $ARGUMENTS` по инструкциям из этого файла.
+Прочитай файл {{FRAMEWORK_DIR}}/orchestrator.md (используй Read tool) и выполни команду `patch-rfc $ARGUMENTS` по инструкциям из этого файла.

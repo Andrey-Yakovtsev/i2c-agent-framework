@@ -10,4 +10,4 @@
 Если `$ARGUMENTS` пуст — спроси пользователя: "Введи название компонента для RFC (например: 'Core Data Model', 'Auth Service', 'Payment Pipeline'):"
 Дождись ответа и используй его как аргумент.
 
-Прочитай файл {{FRAMEWORK_DIR}}/orchestrator-installed.md (используй Read tool) и выполни команду `create-rfc $ARGUMENTS` по инструкциям из этого файла.
+Прочитай файл {{FRAMEWORK_DIR}}/orchestrator.md (используй Read tool) и выполни команду `create-rfc $ARGUMENTS` по инструкциям из этого файла.
