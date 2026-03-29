@@ -5,7 +5,7 @@
 **Путь к фреймворку:** `.i2c/framework/`
 Все агенты, шаблоны и инструменты встроены в проект.
 
-**Среда выполнения:** Qwen-Code. Субагенты зарегистрированы в `.qwen/agents/` проекта. Вызывай их по имени (не по пути к файлу).
+**Среда выполнения:** Qwen-Code. Файлы агентов установлены в `.qwen/agents/` проекта. Вызывай через `general-purpose` субагент по протоколу из секции «Делегирование».
 
 ---
 
@@ -54,6 +54,15 @@
 - При abandon: `"status": "abandoned"`
 - Поля `scratch_files` обновляй по мере создания файлов
 
+### Запись файлов
+
+Параметр `content` в WriteFile — **всегда строка**, не объект.
+
+✅ `WriteFile(content='{"command": "create-adr", "status": "in_progress"}')`
+❌ `WriteFile(content={"command": "create-adr", "status": "in_progress"})`
+
+Если ошибка "params/content must be string" — сериализуй JSON в строку.
+
 ---
 
 ## Дисциплина контекста
@@ -85,19 +94,55 @@
 
 ## Делегирование субагентам (Qwen-Code)
 
-В Qwen-Code субагенты вызываются по имени, зарегистрированному в `.qwen/agents/`.
+Qwen-Code поддерживает только `general-purpose` и `Explore` типы субагентов.
+Специализированные агенты I2C (supervisor, researcher, architect, critic, writer, test-writer, failure-analyst) реализуются через `general-purpose` субагент с загруженным промптом из `.qwen/agents/`.
 
-| Агент | Имя для вызова |
-|-------|----------------|
-| Supervisor | `supervisor` |
-| Researcher | `researcher` |
-| Architect | `architect` |
-| Critic | `critic` |
-| Writer | `writer` |
-| Test Writer | `test-writer` |
-| Failure Analyst | `failure-analyst` |
+### Протокол: "Делегируй задачу субагенту `X`"
 
-Вместо "Запусти субагент с промптом из `.i2c/framework/agents/X.md`" — **"Делегируй задачу субагенту `X`"**.
+1. Прочитай `.qwen/agents/X.md` (Read tool)
+2. Вызови Agent tool с `subagent_type: "general-purpose"` и промптом:
+
+```
+[Содержимое .qwen/agents/X.md]
+
+---
+
+## Задача
+[Что нужно сделать, режим работы, входные данные]
+
+## Выходной файл
+Запиши результат в: [путь к scratch-файлу]
+
+## Формат ответа
+Верни ТОЛЬКО: 1 строка что сделано + путь к файлу + вердикты.
+```
+
+3. Дождись ответа субагента
+
+### Пример: делегирование `supervisor` в Pre-flight
+
+1. `Read .qwen/agents/supervisor.md`
+2. `Agent(subagent_type="general-purpose", prompt=...)`:
+
+```
+[содержимое supervisor.md]
+
+---
+
+## Задача
+Режим: Pre-flight. Проверь ADR: Keycloak SSO via APISIX Gateway.
+
+## Входные данные
+- MEMORY.md: [содержимое]
+- GOALS.md: [содержимое]
+- Файлы в docs/: [список]
+
+## Выходной файл
+Запиши результат в: .i2c/scratch/adr-preflight.md
+
+## Формат ответа
+Верни ТОЛЬКО: 1 строка что сделано + путь к файлу + вердикт (APPROVE/SKIP/CLARIFY).
+```
 
 ---
 
@@ -973,7 +1018,7 @@ Stage 0 — Инициализация
   .i2c/GOALS.md            — текущие цели
   .i2c/JOURNAL.md          — лог действий
   .i2c/pipeline_state.json — стейт пайплайна
-  .qwen/agents/            — субагенты I2C
+  .qwen/agents/            — промпты агентов I2C (вызываются через general-purpose)
   .qwen/commands/          — slash-команды I2C
 
 Следующий шаг: /i2c-create-prd
@@ -1061,7 +1106,7 @@ Stage 0 — Аудит существующего проекта
   .i2c/GOALS.md            — текущие цели
   .i2c/JOURNAL.md          — лог действий
   .i2c/pipeline_state.json — стейт пайплайна
-  .qwen/agents/            — субагенты I2C
+  .qwen/agents/            — промпты агентов I2C (вызываются через general-purpose)
   .qwen/commands/          — slash-команды I2C
 
 Следующий шаг: /i2c-status — посмотреть какие документы отсутствуют
