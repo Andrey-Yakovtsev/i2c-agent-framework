@@ -49,8 +49,9 @@ Supervisor проверяет: RFC ACCEPTED? Зависимости реализ
 
 Прочитай финальный план.
 
-**Группа A — coding-агенты:** для каждого модуля/задачи из плана запусти general-purpose субагент.
+**Группа A — coding-агенты:** для каждого модуля/задачи из плана запусти `agents/coder.md`.
 Передай: RFC, MEMORY.md, задача из плана, целевые файлы.
+Агент сам читает `protocols/code-quality.md`; если RFC имеет секцию безопасности — также `protocols/secure-code.md`.
 **patch:** добавь "НЕ ТРОГАЙ unchanged-модули", "расширяй, не перезаписывай".
 Каждый пишет отчёт: `.i2c/scratch/{PREFIX}-module-[M]-report.md`
 

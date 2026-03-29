@@ -135,7 +135,7 @@ Researcher исследует проблему, пользователей и р
 1. **Architect** — параллельно создаёт план реализации и план тестов
 2. **Critic** — проверяет оба плана на покрытие AC
 3. **Writer** — финализирует Implementation Plan
-4. **Coding + Test Writer** — параллельно: код по модулям и тесты из RFC (Test Writer не видит реализацию)
+4. **Coder + Test Writer** — параллельно: код по модулям (layered arch, 12-factor, secure by design) и тесты из RFC (Test Writer не видит реализацию)
 5. **Failure Analyst** — для упавших тестов: `CODE_BUG` / `TEST_BUG` / `AMBIGUOUS`
 6. **Critic [Verification]** — итоговая проверка кода против AC с учётом тестов
 
@@ -239,6 +239,7 @@ git pull
 | **Architect** | PRD, ADR, RFC, Planning, Test Planning | Проектирование, трейдоффы, планы реализации и тестов |
 | **Critic** | PRD, ADR, RFC, Planning, Verification | Атакует черновики, верифицирует код против AC |
 | **Writer** | Все документальные | Финализация по шаблону |
+| **Coder** | Full, Patch | Реализация кода по RFC. Layered arch, 12-factor, secure by design |
 | **Test Writer** | — | Тесты из RFC без доступа к реализации |
 | **Failure Analyst** | — | Анализ упавших тестов: CODE_BUG / TEST_BUG / AMBIGUOUS |
 
@@ -288,11 +289,14 @@ i2c-agent-framework/
     architect.md
     critic.md
     writer.md
+    coder.md
     test-writer.md
     failure-analyst.md
   protocols/                 ← переиспользуемые протоколы конвейеров
     create-pipeline.md
     code-pipeline.md
+    code-quality.md
+    secure-code.md
     verification-cycle.md
   commands/                  ← шаблоны команд (с {{FRAMEWORK_DIR}})
     i2c-setup.md
