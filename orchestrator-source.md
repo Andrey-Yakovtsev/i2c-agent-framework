@@ -34,6 +34,12 @@
 
 Статусы: `in_progress` → `done` / `halted` / `abandoned`.
 
+### dependency-graph.json
+
+Граф зависимостей артефактов. Читается при инициализации, обновляется после каждого ACCEPTED/SUCCESS.
+Схема и операции: `protocols/dependency-graph.md`.
+При инициализации (Шаг 2 Конвенций) — если файл существует, прочитай его.
+
 ### Вердикты Supervisor Pre-flight
 
 - **SKIP** → сообщи причину, не запускай пайплайн
@@ -189,8 +195,8 @@
 **После ACCEPTED:**
 1. Обнови ADR (добавь `## История изменений` с типом)
 2. Обнови MEMORY.md
-3. Если breaking → зависимые RFC в "Технический долг" MEMORY.md
-4. Выведи список RFC для пересмотра
+3. Если breaking → обнови `dependency-graph.json`: `flag_for_review` для всех downstream nodes (`protocols/dependency-graph.md`). Зависимые RFC в "Технический долг" MEMORY.md
+4. Предложи `/i2c-impact ADR-[N]` для полной картины влияния
 
 ---
 
@@ -227,6 +233,26 @@
 **Отличие от code-rfc:** работает на дельте, без env bootstrap, тесты только для new_ac, полный тест-сюит (регрессия).
 
 **Специфика Pre-flight:** IMPL существует? RFC изменился? Предыдущий HALT?
+
+---
+
+## Команда: `impact [artifact-id]`
+
+1. Прочитай `protocols/dependency-graph.md`
+2. Прочитай `.i2c/dependency-graph.json`. Если не существует — предложи `/i2c-rebuild-graph`
+3. Найди `artifact-id` в графе
+4. Выведи: upstream, downstream, транзитивные зависимости (формат из протокола)
+5. Если `--cascade`: предложи порядок обновления (топологическая сортировка downstream)
+
+---
+
+## Команда: `rebuild-graph`
+
+1. Прочитай `protocols/dependency-graph.md` секцию "Инициализация"
+2. Просканируй `docs/` — все ADR, RFC, IMPL файлы
+3. Распарси метаданные (Зависит от, Блокирует, Связанные решения)
+4. Сгенерируй `.i2c/dependency-graph.json`
+5. Выведи summary: N nodes, M edges, предупреждения о несоответствиях
 
 ---
 

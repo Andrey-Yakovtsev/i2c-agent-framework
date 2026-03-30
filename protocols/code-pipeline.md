@@ -15,7 +15,7 @@
 ## Шаг 0 — Supervisor: Pre-flight
 
 Передай: RFC-[N] + специфичные для MODE входы (см. оркестратор).
-Supervisor проверяет: RFC ACCEPTED? Зависимости реализованы? Нет дублирования?
+Supervisor проверяет: RFC ACCEPTED? Зависимости реализованы? Нет дублей?
 
 ## Шаг 1 — Architect (Planning)
 
@@ -30,7 +30,7 @@ Supervisor проверяет: RFC ACCEPTED? Зависимости реализ
 ## Шаг 2 — Critic (Planning review)
 
 `agents/critic.md`, режим "Planning". Проверяет покрытие AC в плане реализации и тестах.
-**patch:** дополнительно проверяет что задачи расширяют, а не перезаписывают; unchanged-модули отмечены как "пропустить".
+**patch:** проверяет что задачи расширяют, не перезаписывают; unchanged = "пропустить".
 Пишет: `.i2c/scratch/{PREFIX}-plan-review.md`
 
 ## Шаг 3 — Writer (финализация плана)
@@ -51,7 +51,7 @@ Supervisor проверяет: RFC ACCEPTED? Зависимости реализ
 
 **Группа A — coding-агенты:** для каждого модуля/задачи из плана запусти `agents/coder.md`.
 Передай: RFC, MEMORY.md, задача из плана, целевые файлы.
-Агент сам читает `protocols/code-quality.md`; если RFC имеет секцию безопасности — также `protocols/secure-code.md`.
+Агент читает `protocols/code-quality.md`; при наличии секции безопасности — `protocols/secure-code.md`.
 **patch:** добавь "НЕ ТРОГАЙ unchanged-модули", "расширяй, не перезаписывай".
 Каждый пишет отчёт: `.i2c/scratch/{PREFIX}-module-[M]-report.md`
 
@@ -64,8 +64,8 @@ Supervisor проверяет: RFC ACCEPTED? Зависимости реализ
 Запускай обе группы **в одном сообщении**. Последующие волны coding — без test-writer.
 
 **После завершения — тест-раннер:**
-Запусти субагент: выполнить тесты (команда из MEMORY.md), записать результаты в `.i2c/scratch/{PREFIX}-test-results.md`.
-Формат: `| Тест | AC | [Тип] | Статус | Stacktrace |` (Тип = existing/new — только для patch).
+Запусти субагент: тесты (команда из MEMORY.md) → `.i2c/scratch/{PREFIX}-test-results.md`.
+Формат: `| Тест | AC | [Тип] | Статус | Stacktrace |` (Тип existing/new — patch only).
 
 ## Шаг 5 — Verification
 
@@ -78,11 +78,11 @@ Supervisor проверяет: RFC ACCEPTED? Зависимости реализ
 | **SUCCESS** | Все AC verified |
 | **HALT_FAILURE_BUDGET** | `fixes_round >= 2` + NEEDS_FIXES |
 | **HALT_CRITICAL_GAPS** | FAIL у ≥50% модулей/задач |
-| **HALT_DEPENDENCY_DEADLOCK** | depends_on RFC не реализованы (только full) |
-| **HALT_POLICY_VIOLATION** | Нарушение ограничений из MEMORY.md (только full) |
-| **HALT_ENV_SETUP_FAILED** | Bootstrap не смог поднять окружение (только full) |
+| **HALT_DEPENDENCY_DEADLOCK** | depends_on RFC не реализованы |
+| **HALT_POLICY_VIOLATION** | Нарушение ограничений MEMORY.md |
+| **HALT_ENV_SETUP_FAILED** | Bootstrap не поднял окружение |
 
-При HALT: `pipeline_state.json` → `"status": "halted"`, `"halt_reason": "..."`. JOURNAL.md не обновлять.
+При HALT: `pipeline_state.json` → `"status": "halted"`, `"halt_reason": "..."`.
 
 ## После SUCCESS
 
@@ -91,4 +91,5 @@ Supervisor проверяет: RFC ACCEPTED? Зависимости реализ
 3. Если отклонения от AC/RFC → добавь в "Технический долг" MEMORY.md
 4. Запиши в JOURNAL.md: файлы, AC покрытие, отклонения, tech debt
 5. **patch:** обнови `docs/impl/IMPL-[N]-*.md` — добавь `## История изменений` с новыми AC и файлами
-6. Сообщи пользователю результат
+6. Обнови `.i2c/dependency-graph.json`: добавь/обнови IMPL node + edge `implements` к RFC-[N] (см. `protocols/dependency-graph.md`)
+7. Сообщи пользователю результат

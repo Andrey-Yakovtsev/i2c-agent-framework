@@ -142,6 +142,7 @@ if [[ ! -f "$I2C_DIR/config.md" ]]; then
 CONFIGEOF
 
   echo '{}' > "$I2C_DIR/pipeline_state.json"
+  echo '{"version":1,"nodes":{},"edges":[],"last_updated":""}' > "$I2C_DIR/dependency-graph.json"
 
   echo "  ✓ .i2c/ created with templates"
 else
@@ -279,4 +280,6 @@ echo "  /i2c-patch-rfc [N]             — patch after RFC change"
 echo "  /i2c-status                    — show project status"
 echo "  /i2c-check                     — consistency check"
 echo "  /i2c-resume                    — resume pipeline"
+echo "  /i2c-impact [artifact-id]       — dependency impact analysis"
+echo "  /i2c-rebuild-graph             — rebuild dependency graph"
 echo "  /i2c-framework-update          — update framework"
