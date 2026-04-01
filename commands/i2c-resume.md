@@ -1,3 +1,7 @@
+---
+name: i2c-resume
+description: Resumes a halted or interrupted pipeline
+---
 Продолжить прерванный пайплайн с того шага, где он остановился.
 
 Читает `.i2c/pipeline_state.json`, показывает завершённые и оставшиеся шаги.

@@ -1,3 +1,7 @@
+---
+name: i2c-check
+description: Verifies consistency across all project documents
+---
 Проверить консистентность всей документации проекта.
 
 Запускает диагностический агент, который сверяет PRD, ADR и RFC между собой:

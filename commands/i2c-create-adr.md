@@ -1,3 +1,7 @@
+---
+name: i2c-create-adr
+description: Creates Architecture Decision Record for architectural decisions
+---
 Создать Architecture Decision Record для конкретного архитектурного решения.
 
 Запускает: Supervisor → Architect → Critic → Writer → Supervisor.

@@ -83,6 +83,8 @@
 
 При `--cascade` порядок определяется топологической сортировкой downstream nodes.
 
+Для planned nodes (из ADR) см. `protocols/rfc-roadmap.md`.
+
 ## Инициализация (rebuild)
 
 1. Просканируй `docs/PRD.md`, `docs/ADR-*.md`, `docs/rfc/RFC-*.md`, `docs/impl/IMPL-*.md`

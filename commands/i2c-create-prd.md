@@ -1,3 +1,7 @@
+---
+name: i2c-create-prd
+description: Creates Product Requirements Document from project config
+---
 Создать Product Requirements Document через полный конвейер агентов.
 
 Запускает: Supervisor (pre-flight) → Researcher → Architect → Critic → Writer → Supervisor (post-review).

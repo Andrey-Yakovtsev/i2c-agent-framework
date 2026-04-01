@@ -1,3 +1,7 @@
+---
+name: i2c-create-rfc
+description: Creates RFC technical specification for a component
+---
 Создать RFC (Request for Comments) для одного компонента системы.
 
 Запускает: Supervisor → Researcher → Architect → Critic → Writer → Supervisor.

@@ -1,3 +1,7 @@
+---
+name: i2c-setup
+description: Interactive project configuration and initialization
+---
 Интерактивная конфигурация проекта для работы с I2C фреймворком.
 
 Структура `.i2c/` уже создана `install.sh`. Эта команда заполняет config.md интерактивно.

@@ -1,3 +1,7 @@
+---
+name: i2c-update-prd
+description: Updates PRD after scope changes or pivot
+---
 Обновить существующий PRD после пивота или изменения scope.
 
 Сокращённый конвейер (без Researcher): Supervisor → Architect → Critic → Writer → Supervisor.

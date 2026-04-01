@@ -318,6 +318,11 @@ Qwen-Code поддерживает только `general-purpose` и `Explore` �
    [Паттерн от Supervisor — вставить блок из post-review]
    ```
 4. Сообщи пользователю: PRD готов, путь к файлу, открытые вопросы.
+5. Запусти `researcher` в режиме "Engineering Practices":
+   - Передай: `docs/PRD.md`, `.i2c/config.md`, `.i2c/MEMORY.md`
+   - Субагент пишет: `.i2c/engineering-practices.md`
+   - Покажи результат пользователю для подтверждения
+6. Обнови `.i2c/GOALS.md`: "Практики определены. Следующий: `/i2c-create-adr`"
 
 ---
 
@@ -358,6 +363,7 @@ Qwen-Code поддерживает только `general-purpose` и `Explore` �
 Передай ему:
 - Название решения (аргумент команды)
 - Содержимое `.i2c/MEMORY.md`
+- Содержимое `.i2c/engineering-practices.md` (если файл существует)
 - Подсказки от Supervisor (если были)
 - Режим: "ADR"
 
@@ -417,6 +423,11 @@ Qwen-Code поддерживает только `general-purpose` и `Explore` �
 1. Обнови `pipeline_state.json`: `"status": "done"`.
 2. Добавь решение в `.i2c/MEMORY.md`
 3. Запиши в `.i2c/JOURNAL.md` (включая паттерн от Supervisor)
+4. Обнови `.i2c/dependency-graph.json`: добавь node для ADR + edges
+5. Если ADR содержит секцию "Необходимые RFC" — добавь planned nodes в `dependency-graph.json` по `protocols/rfc-roadmap.md`:
+   - Для каждого RFC из таблицы: node с `status: "planned"` + edge `planned_by` к ADR
+   - Если RFC зависит от другого planned RFC → edge `depends_on`
+6. Обнови `.i2c/GOALS.md` с порядком создания RFC из таблицы "Необходимые RFC"
 
 ---
 
@@ -609,7 +620,89 @@ RFC зависимые от этого ADR: [список]
 После ACCEPTED:
 1. Обновляет `docs/ADR-[N]-*.md` (добавляет секцию `## История изменений`)
 2. Обновляет `.i2c/MEMORY.md`
-3. Проверяет RFC на консистентность — выводит список RFC которые нужно пересмотреть
+3. Если breaking → обнови `.i2c/dependency-graph.json`: `flag_for_review` для downstream RFC. Зависимые RFC в "Технический долг" MEMORY.md
+4. Выведи список команд для обновления затронутых RFC (топологический порядок):
+   ```
+   Затронутые RFC (рекомендуемый порядок):
+   1. /i2c-update-rfc [N1]
+   2. /i2c-update-rfc [N2]
+   ```
+
+---
+
+## Команда: `update-rfc [N]`
+
+Обновить RFC после изменения вышестоящего ADR. Аргумент: только номер RFC.
+
+**Читаешь перед стартом:**
+- `docs/rfc/RFC-[N]-*.md` — текущий RFC
+- `.i2c/dependency-graph.json` — найди upstream ADR по edges
+- Upstream ADR: прочитай секцию `## История изменений` — это описание того что изменилось
+- `.i2c/MEMORY.md`
+
+**Конвейер:**
+
+### Шаг 0 — Supervisor: Pre-flight
+Обнови `pipeline_state.json`: `command: "update-rfc"`, `argument: "[N]"`, `current_step: "supervisor-preflight"`.
+Делегируй субагенту `supervisor` в режиме Pre-flight.
+
+Передай:
+- Описание: "Обновление RFC-[N] после изменения ADR-[M]"
+- Текущий RFC
+- Содержимое `.i2c/MEMORY.md`
+
+**Если SKIP** — RFC не затронут изменением. Сообщи, удали pipeline_state.json.
+**Если APPROVE** — продолжай.
+
+### Шаг 1 — Architect
+Обнови `pipeline_state.json`: `current_step: "architect"`.
+Делегируй субагенту `architect`.
+
+Передай:
+- Текущий RFC
+- Обновлённый ADR (полностью, включая "История изменений")
+- Содержимое `.i2c/MEMORY.md`
+- Инструкция: "Проанализируй дельту между текущим RFC и обновлённым ADR. Определи какие секции RFC затронуты. Пометь `[ИЗМЕНЕНО]` / `[БЕЗ ИЗМЕНЕНИЙ]`."
+- Режим: "RFC" (update)
+
+Субагент пишет: `.i2c/scratch/rfc-[N]-update-draft.md`
+
+### Шаг 2 — Critic
+Обнови `pipeline_state.json`: `current_step: "critic"`.
+Делегируй субагенту `critic`.
+
+Передай:
+- `.i2c/scratch/rfc-[N]-update-draft.md`
+- Содержимое `.i2c/MEMORY.md`
+- Режим: "RFC"
+
+Субагент пишет: `.i2c/scratch/rfc-[N]-update-review.md`
+
+### Шаг 3 — Writer
+Обнови `pipeline_state.json`: `current_step: "writer"`.
+Делегируй субагенту `writer`.
+
+Передай:
+- `.i2c/scratch/rfc-[N]-update-draft.md`
+- `.i2c/scratch/rfc-[N]-update-review.md`
+- `.i2c/framework/templates/RFC.md`
+- `.i2c/MEMORY.md`
+
+Субагент пишет: `.i2c/scratch/rfc-[N]-updated-final.md`
+
+### Шаг 4 — Supervisor: Post-review
+Стандартная проверка.
+
+**Если ACCEPTED:** заменяет `docs/rfc/RFC-[N]-*.md`. Добавляет секцию `## История изменений`.
+
+**Если NEEDS_REVISION:** стандартный итерационный процесс (макс 2 ревизии).
+
+**После завершения:**
+1. Обнови `pipeline_state.json`: `"status": "done"`.
+2. Обнови `.i2c/MEMORY.md`: очисти запись Tech Debt для этого RFC
+3. Обнови `.i2c/dependency-graph.json`
+4. Запиши в `.i2c/JOURNAL.md`
+5. Если у RFC есть downstream IMPL → добавь IMPL в Tech Debt, предложи `/i2c-patch-rfc [N]`
 
 ---
 
@@ -652,7 +745,7 @@ Supervisor проверяет:
 
 **Субагент A** — `architect`, режим: "Planning"
 Передай: RFC-[N], MEMORY.md, список уже реализованных RFC
-Пишет: `.i2c/scratch/impl-[N]-plan-draft.md`
+Пишет: `.i2c/scratch/impl-[N]-plan-draft.md` + `.i2c/scratch/rfc-[N]-ac-checklist.md` (см. `protocols/ac-checklist.md`)
 
 **Субагент B** — `architect`, режим: "Test Planning"
 Передай: RFC-[N], MEMORY.md
@@ -744,7 +837,7 @@ Supervisor проверяет:
 
 Обнови `pipeline_state.json`: `current_step: "coding"`.
 
-Прочитай `docs/impl/IMPL-[N]-[slug].md` и `.i2c/scratch/test-[N]-plan.md`.
+Прочитай `docs/impl/IMPL-[N]-[slug].md`, `.i2c/scratch/test-[N]-plan.md` и `.i2c/scratch/rfc-[N]-ac-checklist.md`.
 
 **Для первой параллельной группы** — делегируй coding-агентам и test-writer агентам параллельно:
 
@@ -753,9 +846,11 @@ Supervisor проверяет:
   Для каждого модуля в первой волне:
     Делегируй general-purpose субагенту:
       - Прочитай RFC: docs/rfc/RFC-[N]-*.md
+      - Прочитай AC Checklist: .i2c/scratch/rfc-[N]-ac-checklist.md
       - Прочитай MEMORY.md: .i2c/MEMORY.md
       - Твоя задача: [задача модуля из IMPL]
       - Пиши код в: [файлы модуля]
+      - ВАЖНО: перед началом и после завершения модуля — сверься с AC Checklist
       - После завершения: запиши отчёт в .i2c/scratch/impl-[N]-module-[M]-report.md
 
 Группа B — test-writer агенты (по файлам из test-plan):

@@ -20,7 +20,7 @@ Supervisor проверяет: RFC ACCEPTED? Зависимости реализ
 ## Шаг 1 — Architect (Planning)
 
 **full mode:** запусти **два субагента параллельно**:
-- Субагент A: `agents/architect.md`, режим "Planning" → `.i2c/scratch/impl-[N]-plan-draft.md`
+- Субагент A: `agents/architect.md`, режим "Planning" → `.i2c/scratch/impl-[N]-plan-draft.md` + `rfc-[N]-ac-checklist.md` (см. `protocols/ac-checklist.md`)
 - Субагент B: `agents/architect.md`, режим "Test Planning" → `.i2c/scratch/test-[N]-plan.md`
 
 **patch mode:** один субагент: `agents/architect.md`, режим "Patch Planning".
@@ -42,7 +42,7 @@ Supervisor проверяет: RFC ACCEPTED? Зависимости реализ
 
 ## Шаг 3.5 — Environment Bootstrap (только full mode)
 
-Проверь наличие `Dockerfile`/`docker-compose.yml`. Если контейнер уже запущен → пропусти.
+Проверь `Dockerfile`/`docker-compose.yml`. Контейнер запущен → пропусти.
 Иначе: `agents/env-bootstrap.md`. При FAILED → `HALT_ENV_SETUP_FAILED`.
 
 ## Шаг 4 — Параллельный запуск coding + test-writer
@@ -50,7 +50,7 @@ Supervisor проверяет: RFC ACCEPTED? Зависимости реализ
 Прочитай финальный план.
 
 **Группа A — coding-агенты:** для каждого модуля/задачи из плана запусти `agents/coder.md`.
-Передай: RFC, MEMORY.md, задача из плана, целевые файлы.
+Передай: RFC, MEMORY.md, задачу из плана, целевые файлы, `rfc-[N]-ac-checklist.md`.
 Агент читает `protocols/code-quality.md`; при наличии секции безопасности — `protocols/secure-code.md`.
 **patch:** добавь "НЕ ТРОГАЙ unchanged-модули", "расширяй, не перезаписывай".
 Каждый пишет отчёт: `.i2c/scratch/{PREFIX}-module-[M]-report.md`
@@ -61,7 +61,7 @@ Supervisor проверяет: RFC ACCEPTED? Зависимости реализ
 **patch:** только для new_ac.
 Пишет: `.i2c/scratch/{PREFIX}-test-report.md`
 
-Запускай обе группы **в одном сообщении**. Последующие волны coding — без test-writer.
+Обе группы **в одном сообщении**. Последующие волны coding — без test-writer.
 
 **После завершения — тест-раннер:**
 Запусти субагент: тесты (команда из MEMORY.md) → `.i2c/scratch/{PREFIX}-test-results.md`.
@@ -88,7 +88,7 @@ Supervisor проверяет: RFC ACCEPTED? Зависимости реализ
 
 1. `pipeline_state.json` → `"status": "done"`
 2. Обнови MEMORY.md: таблица "Принятые решения по компонентам" + RTM (`✅ Verified` или `⚠️ Partial`)
-3. Если отклонения от AC/RFC → добавь в "Технический долг" MEMORY.md
+3. Отклонения от AC/RFC → добавь в "Технический долг" MEMORY.md
 4. Запиши в JOURNAL.md: файлы, AC покрытие, отклонения, tech debt
 5. **patch:** обнови `docs/impl/IMPL-[N]-*.md` — добавь `## История изменений` с новыми AC и файлами
 6. Обнови `.i2c/dependency-graph.json`: добавь/обнови IMPL node + edge `implements` к RFC-[N] (см. `protocols/dependency-graph.md`)

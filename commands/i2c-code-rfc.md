@@ -1,3 +1,7 @@
+---
+name: i2c-code-rfc
+description: Implements component code from RFC specification
+---
 Реализовать компонент по RFC через конвейер coding-агентов.
 
 Создаёт Implementation Plan (Architect + Critic + Writer), поднимает Docker-окружение,

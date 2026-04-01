@@ -1,3 +1,7 @@
+---
+name: i2c-patch-rfc
+description: Patches implementation after RFC changes
+---
 Обновить реализацию компонента после изменения RFC.
 
 Анализирует дельту между текущим RFC и оригинальным IMPL-планом,

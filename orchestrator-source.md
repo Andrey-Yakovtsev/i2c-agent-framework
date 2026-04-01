@@ -122,7 +122,11 @@
 
 **Читаешь перед стартом:** config.md, MEMORY.md, `templates/PRD.md`.
 
-**После завершения:** извлеки scope, ограничения, приоритеты → MEMORY.md.
+**После завершения:**
+1. Извлеки scope, ограничения, приоритеты → MEMORY.md
+2. Запусти `agents/researcher.md` в режиме "Engineering Practices": передай PRD, config.md, MEMORY.md → `.i2c/engineering-practices.md`
+3. Покажи результат пользователю для подтверждения
+4. Обнови GOALS.md: "Практики определены. Следующий: `/i2c-create-adr`"
 
 ---
 
@@ -138,12 +142,14 @@
 | DOCS_PATH | `docs/ADR-[NNN]-[slug].md` |
 | PREFIX | `adr` |
 | PRE_FLIGHT_INPUTS | описание "ADR: [название]", список ADR-файлов |
-| ARCHITECT_EXTRA_INPUTS | название решения (аргумент команды), подсказки Supervisor |
+| ARCHITECT_EXTRA_INPUTS | название решения (аргумент команды), подсказки Supervisor, `.i2c/engineering-practices.md` (если существует) |
 | POST_REVIEW_EXTRA | заголовки H1/H2 всех существующих ADR |
 | HAS_CONSISTENCY_CHECK | нет |
 
 **Определи номер ADR:** следующий после существующих `docs/ADR-*.md`.
 **Когда нужен:** решение трудно отменить, значимые трейдоффы, влияет на несколько RFC.
+
+**После завершения (дополнительно):** если ADR содержит секцию "Необходимые RFC" → добавь planned nodes в `dependency-graph.json` по `protocols/rfc-roadmap.md`. Обнови GOALS.md порядком создания RFC.
 
 ---
 
@@ -196,7 +202,29 @@
 1. Обнови ADR (добавь `## История изменений` с типом)
 2. Обнови MEMORY.md
 3. Если breaking → обнови `dependency-graph.json`: `flag_for_review` для всех downstream nodes (`protocols/dependency-graph.md`). Зависимые RFC в "Технический долг" MEMORY.md
-4. Предложи `/i2c-impact ADR-[N]` для полной картины влияния
+4. Выведи список команд для обновления затронутых RFC (топологический порядок):
+   ```
+   Затронутые RFC (рекомендуемый порядок):
+   1. /i2c-update-rfc [N1]
+   2. /i2c-update-rfc [N2]
+   ```
+
+---
+
+## Команда: `update-rfc [N]`
+
+Обновить RFC после изменения вышестоящего ADR. Аргумент: только номер RFC. Агент сам определяет что изменилось.
+
+**Читаешь:** `docs/rfc/RFC-[N]-*.md`, upstream ADR (по `dependency-graph.json` edges), его секцию `## История изменений`, MEMORY.md.
+
+**Конвейер:** Architect → Critic → Writer → Supervisor (без Researcher).
+Architect анализирует дельту между текущим RFC и обновлённым ADR, определяет затронутые секции RFC.
+
+**После ACCEPTED:**
+1. Обнови RFC (добавь `## История изменений` с описанием что и почему)
+2. Обнови MEMORY.md, очисти запись Tech Debt для этого RFC
+3. Обнови `dependency-graph.json`
+4. Если у RFC есть downstream IMPL → добавь IMPL в Tech Debt, предложи `/i2c-patch-rfc [N]`
 
 ---
 

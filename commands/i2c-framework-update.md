@@ -1,3 +1,7 @@
+---
+name: i2c-framework-update
+description: Updates embedded framework to latest version
+---
 Обновить I2C фреймворк до последней версии.
 
 Скачивает обновления из git-репозитория фреймворка и переустанавливает в текущий проект.

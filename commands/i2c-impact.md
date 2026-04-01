@@ -1,3 +1,7 @@
+---
+name: i2c-impact
+description: Analyzes dependency impact of an artifact change
+---
 Показать граф зависимостей артефакта — что затронет его изменение.
 
 Выводит upstream (от чего зависит) и downstream (что зависит от него) артефакты,

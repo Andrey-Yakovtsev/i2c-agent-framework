@@ -25,7 +25,9 @@
       "Bash(for dir:*)",
       "Bash(wc:*)",
       "Bash(/Users/andyy/PycharmProjects/i2c-agent-framework/install.sh /tmp/test-i2c-project --target=claude)",
-      "WebFetch(domain:www.anthropic.com)"
+      "WebFetch(domain:www.anthropic.com)",
+      "Read(//private/tmp/i2c-test-project/.qwen/commands/**)",
+      "Read(//private/tmp/i2c-test-project/.i2c/framework/protocols/**)"
     ]
   }
 }

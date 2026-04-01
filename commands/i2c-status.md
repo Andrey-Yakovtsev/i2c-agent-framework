@@ -1,3 +1,7 @@
+---
+name: i2c-status
+description: Shows current documentation state and next steps
+---
 Показать текущее состояние документации проекта.
 
 Выводит список созданных документов (PRD, ADR, RFC) с датами, последние 5 записей из JOURNAL.md,

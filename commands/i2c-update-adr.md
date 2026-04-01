@@ -1,3 +1,7 @@
+---
+name: i2c-update-adr
+description: Revises an accepted ADR with change cascade
+---
 Пересмотреть принятое архитектурное решение (ADR).
 
 Конвейер: [классификация изменения] → предупреждение → Architect → Critic → Writer → Supervisor (без Researcher).

@@ -1,3 +1,7 @@
+---
+name: i2c-verify-rfc
+description: Verifies implementation matches RFC specification
+---
 Проверить что существующая реализация соответствует RFC.
 
 Запускает Critic в режиме Verification: сверяет код с Acceptance Criteria из RFC,
