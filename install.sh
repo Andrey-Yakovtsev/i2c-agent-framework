@@ -124,6 +124,7 @@ if [[ ! -f "$I2C_DIR/config.md" ]]; then
   cp "$FRAMEWORK_DIR/templates/MEMORY.md" "$I2C_DIR/MEMORY.md"
   cp "$FRAMEWORK_DIR/templates/GOALS.md" "$I2C_DIR/GOALS.md"
   cp "$FRAMEWORK_DIR/templates/JOURNAL.md" "$I2C_DIR/JOURNAL.md"
+  cp "$FRAMEWORK_DIR/templates/context-schema.md" "$I2C_DIR/context-schema.md"
 
   # Create empty config and pipeline state
   cat > "$I2C_DIR/config.md" << 'CONFIGEOF'

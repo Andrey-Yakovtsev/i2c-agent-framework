@@ -81,11 +81,19 @@ cd ~/i2c-agent-framework
 /i2c-create-prd
 ```
 
-Запускает конвейер: Supervisor → Researcher → Architect → Critic → Writer → Supervisor.
+Запускает конвейер: Supervisor → Researcher → Architect → Critic → **Clarification Loop** → Writer → Supervisor.
 
-Researcher исследует проблему, пользователей и рынок. Architect формулирует Vision, MVP scope, ключевые workflow и метрики. Critic проверяет что MVP не слишком широк, пользователь конкретный, метрики измеримы. Writer собирает финальный PRD по шаблону.
+Researcher исследует проблему, пользователей и рынок. Architect формулирует Vision, MVP scope, ключевые workflow и метрики. Critic проверяет что MVP не слишком широк, пользователь конкретный, метрики измеримы.
 
-Результат: `docs/PRD.md`
+**Clarification Loop** (max 3 круга, со сходимостью): если Critic обнаружил критические пробелы, оркестратор задаёт пользователю batch-вопросы по одной теме за круг (user / сценарии / метрики / границы MVP). Цикл останавливается как только Critic перестаёт находить критические gap'ы.
+
+Writer собирает финальный PRD по шаблону.
+
+**После финализации PRD** (автоматически):
+1. **Practices pipeline** — Researcher → Critic → Writer генерирует `.i2c/engineering-practices.md` (≤400 слов): обязательные/рекомендуемые/избыточные для MVP практики. Этот файл — де-факто "Constitution" проекта: его обязательно читают Architect (при ADR), Coder и Test Writer (при реализации).
+2. **ADR Roadmap** — Architect формирует начальный список кандидатов-ADR в `GOALS.md § Запланированные ADR`. Это первый cut — список растёт по мере принятия решений.
+
+Результат: `docs/PRD.md`, `.i2c/engineering-practices.md`, обновлённый `GOALS.md`.
 
 ---
 
@@ -135,9 +143,11 @@ Researcher исследует проблему, пользователей и р
 1. **Architect** — параллельно создаёт план реализации и план тестов
 2. **Critic** — проверяет оба плана на покрытие AC
 3. **Writer** — финализирует Implementation Plan
-4. **Coder + Test Writer** — параллельно: код по модулям (layered arch, 12-factor, secure by design) и тесты из RFC (Test Writer не видит реализацию)
+4. **Coder + Test Writer** — параллельно: Coder пишет код по модулям (layered arch, 12-factor, secure by design), читая `.i2c/engineering-practices.md` для соответствия конвенциям проекта; Test Writer пишет тесты из RFC + тестовые политики из practices (не видит реализацию)
 5. **Failure Analyst** — для упавших тестов: `CODE_BUG` / `TEST_BUG` / `AMBIGUOUS`
 6. **Critic [Verification]** — итоговая проверка кода против AC с учётом тестов
+
+Благодаря тому что `engineering-practices.md` — обязательный вход Coder'а и Test Writer'а, код не разъезжается с конвенциями на длинных сессиях.
 
 Исходы: `VERIFIED` → SUCCESS, `NEEDS_FIXES` → доработка (макс 2 раунда), `NEEDS_TEST_FIX` → починка тестов, `CRITICAL_GAPS` → пересмотр плана.
 
@@ -235,9 +245,9 @@ git pull
 | Агент | Режимы | Роль |
 |-------|--------|------|
 | **Supervisor** | Pre-flight, Post-review | Нужен ли артефакт? Вписывается в экосистему? |
-| **Researcher** | PRD, RFC, Discovery | Исследование проблемы, аудит кода |
-| **Architect** | PRD, ADR, RFC, Planning, Test Planning | Проектирование, трейдоффы, планы реализации и тестов |
-| **Critic** | PRD, ADR, RFC, Planning, Verification | Атакует черновики, верифицирует код против AC |
+| **Researcher** | PRD, RFC, Discovery, Engineering Practices | Исследование проблемы, аудит кода, анализ инженерных практик |
+| **Architect** | PRD, ADR, RFC, Planning, Test Planning, Patch Planning, ADR Roadmap | Проектирование, трейдоффы, планы реализации/тестов/патчей, roadmap ADR |
+| **Critic** | PRD, ADR, RFC, Planning, Verification, Engineering Practices | Атакует черновики, верифицирует код против AC, проверяет practices |
 | **Writer** | Все документальные | Финализация по шаблону |
 | **Coder** | Full, Patch | Реализация кода по RFC. Layered arch, 12-factor, secure by design |
 | **Test Writer** | — | Тесты из RFC без доступа к реализации |
@@ -253,9 +263,12 @@ your-project/
   .i2c/
     config.md                        ← контекст проекта
     MEMORY.md                        ← принятые решения + RTM
-    GOALS.md                         ← текущая стадия
+    GOALS.md                         ← текущая стадия + запланированные ADR/RFC
     JOURNAL.md                       ← лог действий
+    engineering-practices.md         ← Constitution проекта (политики, паттерны)
+    context-schema.md                ← декларативное описание какие входы грузить для каждой задачи
     pipeline_state.json              ← стейт пайплайна (для resume)
+    dependency-graph.json            ← граф зависимостей артефактов
     scratch/                         ← временные файлы агентов (не коммитить)
   docs/
     PRD.md
@@ -298,6 +311,10 @@ i2c-agent-framework/
     code-quality.md
     secure-code.md
     verification-cycle.md
+    ac-checklist.md
+    dependency-graph.md
+    rfc-roadmap.md
+    adr-roadmap.md
   commands/                  ← шаблоны команд (с {{FRAMEWORK_DIR}})
     i2c-setup.md
     i2c-create-prd.md
@@ -313,7 +330,7 @@ i2c-agent-framework/
     i2c-check.md
     i2c-framework-update.md
   templates/
-    PRD.md, ADR.md, RFC.md, IMPL.md, MEMORY.md, GOALS.md, JOURNAL.md
+    PRD.md, ADR.md, RFC.md, IMPL.md, MEMORY.md, GOALS.md, JOURNAL.md, context-schema.md
   diagnostics/
     review-checklist.md
 ```
@@ -337,6 +354,23 @@ i2c-agent-framework/
 **Supervisor — привратник.** Документ попадает в `docs/` только после ACCEPTED.
 
 **Код и спека идут параллельно.** `code-rfc` не ждёт создания всех RFC — только принятия конкретного RFC и верификации его зависимостей.
+
+---
+
+## Устойчивость к компактизации контекста
+
+В долгих сессиях Claude Code и Qwen Code автоматически сжимают историю, чтобы уместиться в окно контекста. Это разрушает in-memory состояние: агент "забывает" что читал 20 шагов назад. Самодиагностировать потерю контекста агент **не может** — инструкции вида "если забыл, перечитай" невыполнимы.
+
+I2C решает это архитектурно через **state-machine дисциплину оркестратора**:
+
+- Оркестратор — **stateless interpreter между шагами**. Он не держит в памяти ничего критичного между вызовами субагентов.
+- В начале каждого шага он re-read'ает: `.i2c/pipeline_state.json` (текущий шаг), `.i2c/context-schema.md` (список обязательных входов для этого шага), и сами эти входы (MEMORY.md, RFC, engineering-practices, scratch-файлы).
+- После компактизации оркестратор получает компактный summary ("я в процессе create-prd, шаг 3") — этого достаточно, чтобы он снова открыл диск и загрузил свежие данные.
+- **Субагенты** получают уже готовые входы от оркестратора в промпте. Каждый субагент — свежий spawn с чистым контекстом. Компактизация основной сессии их не затрагивает — они вообще не живут через компактизацию.
+
+**Context-schema** (`.i2c/context-schema.md`) — декларативный манифест "что читать для каждой задачи": упорядоченные входы, word-бюджет, lazy-условия. Это **основной** механизм работы оркестратора, а не fallback. Файл принадлежит проекту — кастомизируй его под специфику.
+
+Подход вдохновлён паттерном "LLM Wiki" (Andrej Karpathy) — раздельная ответственность слоёв raw sources / wiki / schema — но без множения wiki-страниц: MEMORY.md остаётся единым wiki-слоем.
 
 ---
 

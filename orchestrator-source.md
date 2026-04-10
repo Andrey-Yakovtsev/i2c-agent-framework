@@ -40,6 +40,20 @@
 Схема и операции: `protocols/dependency-graph.md`.
 При инициализации (Шаг 2 Конвенций) — если файл существует, прочитай его.
 
+### State-machine дисциплина
+
+**Оркестратор — stateless interpreter между шагами.** Не полагайся на «я помню что читал 5 шагов назад». Всё критичное — на диске. Перед **каждым** шагом пайплайна:
+
+1. Re-read `.i2c/pipeline_state.json` → `current_step`, `completed_steps`, `clarify_round`, `fixes_round`.
+2. Re-read `.i2c/context-schema.md` → найди секцию текущего шага → список обязательных входов.
+3. Re-read эти входы fresh (MEMORY.md, RFC, ADR, scratch-файлы, engineering-practices.md — что указано в схеме).
+4. Сформируй prompt субагенту с готовыми входами. Субагент не догадывается.
+5. После завершения — обнови `pipeline_state.json` и переходи к следующему шагу, снова с пункта 1.
+
+**Зачем.** Это делает компактизацию контекста транзпарентной. Если Claude Code/Qwen сжали историю — компактный summary ("идёт create-prd, шаг 3") достаточен: ты всё равно делаешь re-read с диска. Правило: **не держи в голове то, что есть на диске.**
+
+Если `.i2c/context-schema.md` отсутствует — используй дефолтные reads из описания команды.
+
 ### Вердикты Supervisor Pre-flight
 
 - **SKIP** → сообщи причину, не запускай пайплайн
@@ -119,14 +133,15 @@
 | RESEARCHER_INPUTS | config.md |
 | POST_REVIEW_EXTRA | заголовки H1/H2 всех файлов из docs/ |
 | HAS_CONSISTENCY_CHECK | нет |
+| HAS_CLARIFICATION_LOOP | да |
 
 **Читаешь перед стартом:** config.md, MEMORY.md, `templates/PRD.md`.
 
 **После завершения:**
 1. Извлеки scope, ограничения, приоритеты → MEMORY.md
-2. Запусти `agents/researcher.md` в режиме "Engineering Practices": передай PRD, config.md, MEMORY.md → `.i2c/engineering-practices.md`
-3. Покажи результат пользователю для подтверждения
-4. Обнови GOALS.md: "Практики определены. Следующий: `/i2c-create-adr`"
+2. **Practices pipeline:** Researcher (Engineering Practices) → `.i2c/scratch/practices-draft.md` (≤400 слов) → Critic (Engineering Practices) → `.i2c/scratch/practices-review.md` → Writer → `.i2c/engineering-practices.md` (финал, ≤400 слов). Покажи пользователю.
+3. **ADR roadmap:** следуй `protocols/adr-roadmap.md` — Architect (ADR Roadmap) → merge в `GOALS.md` § "Запланированные ADR (initial cut)".
+4. Обнови GOALS.md: "Практики определены, ADR roadmap сформирован. Следующий: `/i2c-create-adr`"
 
 ---
 

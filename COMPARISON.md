@@ -79,6 +79,9 @@ PRD → ADR → RFC → Implementation Plan → Code + Tests → Verification
 - **Verification Cycle:** Test Writer пишет тесты из RFC **не видя реализацию** (тест = контракт). Failure Analyst анализирует каждый упавший тест (CODE_BUG / TEST_BUG / AMBIGUOUS). RFC — единственный арбитр при расхождении теста и кода. У конкурентов нет аналога.
 - **Pipeline resume:** `pipeline_state.json` позволяет продолжить с точки прерывания. Spec Kit и BMAD теряют контекст при обрыве сессии.
 - **MEMORY.md как закон:** зафиксированные решения не переоткрываются последующими агентами. Предотвращает "архитектурный дрейф" в длинных проектах.
+- **Engineering Practices как Constitution:** `.i2c/engineering-practices.md` проходит через Critic-ревью и является **обязательным входом** для Coder и Test Writer. Это де-факто Constitution проекта — cross-cutting concerns (стиль кода, NFR, testing policy) централизованы в одном компактном (≤400 слов) файле и реально потребляются на этапе кодирования.
+- **Declarative Context Recovery:** `.i2c/context-schema.md` формализует правила восстановления контекста агентом для каждого типа задачи — упорядоченные входы, word-бюджет, lazy-условия. Spec Kit и BMAD полагаются на ad-hoc композицию контекста. I2C — единственный фреймворк с явной schema query-операции в духе паттерна LLM-Wiki.
+- **Convergent PRD Clarification Loop:** автоматические batch-вопросы к пользователю до 3 кругов со сходимостью, когда Critic обнаруживает критические gap'ы в PRD. Spec Kit/BMAD требуют от пользователя вручную итеративно правильно формулировать спеку.
 - **Протокол ревизий:** Writer #1 → Architect #2 → Human-in-the-loop. Эскалация структурирована, человек привлекается только после двух неудач.
 - **Минимальный footprint:** устанавливается в конкретный проект, не загрязняет глобальный конфиг. Оркестратор загружается on-demand.
 
@@ -90,7 +93,6 @@ PRD → ADR → RFC → Implementation Plan → Code + Tests → Verification
 
 - **Узкая поддержка IDE:** только Claude Code и Qwen Code. Нет Cursor, Copilot, Gemini.
 - **Нет сообщества:** indie-проект без community extensions и Discord.
-- **Нет Constitution-аналога:** cross-cutting concerns (стиль кода, NFR) не вынесены в отдельный документ — они размазаны по ADR и MEMORY.md.
 - **Жёсткий конвейер:** каждый документ проходит полный pipeline (5-6 агентов). Для мелких изменений это overkill.
 - **Нет scale-adaptive:** одинаковая глубина планирования для бага и enterprise-фичи.
 
@@ -135,7 +137,10 @@ PRD → ADR → RFC → Implementation Plan → Code + Tests → Verification
 | Failure Analyst | ✅ | ❌ | ❌ |
 | Pipeline resume | ✅ | ❌ | ❌ |
 | Memory / Decision log | ✅ MEMORY.md | ⚠️ Constitution (частично) | ⚠️ артефакты (частично) |
-| Constitution / NFR document | ❌ | ✅ | ⚠️ через персоны |
+| Constitution / NFR document | ✅ engineering-practices.md | ✅ | ⚠️ через персоны |
+| Declarative context recovery schema | ✅ context-schema.md | ❌ | ❌ |
+| Convergent PRD clarification loop | ✅ max 3 batch-круга | ❌ | ⚠️ через персоны |
+| ADR / RFC roadmap auto-generation | ✅ | ❌ | ⚠️ через персоны |
 | Agent-agnostic (25+ IDE) | ❌ 2 IDE | ✅ | ⚠️ 2-3 IDE |
 | Scale-adaptive depth | ❌ | ❌ | ✅ |
 | Extension system | ❌ | ✅ 40+ | ⚠️ через персоны |

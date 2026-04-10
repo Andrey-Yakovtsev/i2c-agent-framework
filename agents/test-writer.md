@@ -18,6 +18,9 @@ tools: [read_file, write_file, list_files, search_files]
 - `docs/rfc/RFC-[N]-*.md` — спецификация: AC, интерфейсы, DDL, error handling, нефункциональные требования
 - `.i2c/MEMORY.md` — стек проекта (язык, тест-фреймворк, конвенции именования)
 - `.i2c/scratch/test-[N]-plan.md` — план от Architect: матрица AC → тип теста, файловая структура, нужные фикстуры/моки
+- `.i2c/engineering-practices.md` — **обязательно**: тестовые политики проекта (unit isolation, mocking policy, integration boundaries). Тесты должны им соответствовать.
+
+**Важно:** все входы приходят от оркестратора в промпте. Ты — stateless function: не читаешь `context-schema.md` и не "вспоминаешь" предыдущие шаги. Работаешь только с переданным.
 
 ---
 

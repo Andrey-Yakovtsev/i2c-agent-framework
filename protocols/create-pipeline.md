@@ -16,6 +16,7 @@
 | `ARCHITECT_EXTRA_INPUTS` | Дополнительные входы для Architect (специфично для команды) |
 | `POST_REVIEW_EXTRA` | Дополнительные входы для Supervisor post-review |
 | `HAS_CONSISTENCY_CHECK` | Есть ли Scoped Consistency Check после post-review (только RFC) |
+| `HAS_CLARIFICATION_LOOP` | Есть ли цикл уточняющих вопросов пользователю после Critic (только PRD) |
 
 ## Конвейер
 
@@ -40,6 +41,18 @@
 Запусти `agents/critic.md`. Режим: `ARTIFACT_TYPE`.
 Передай: `{PREFIX}-draft.md` + MEMORY.md.
 Пишет: `.i2c/scratch/{PREFIX}-review.md`
+
+### Шаг 3.5 — Clarification Loop (если `HAS_CLARIFICATION_LOOP`)
+
+Секция «Открытые вопросы (требуют ответа человека)» в `{PREFIX}-review.md` пустая → пропусти.
+
+Иначе цикл, max 3 итерации, счётчик `clarify_round` в `pipeline_state.json`:
+
+1. Сгруппируй вопросы по теме (user / сценарии / метрики / границы). Задай **batch-пачкой по одной теме за круг**.
+2. Ответы → `.i2c/scratch/{PREFIX}-answers-r[clarify_round].md`.
+3. Architect (режим `ARTIFACT_TYPE`) с draft + ответы → перезапись `{PREFIX}-draft.md`.
+4. Critic → перезапись `{PREFIX}-review.md`.
+5. Инкремент счётчика. Пустая секция ИЛИ `>= 3` → выход.
 
 ### Шаг 4 — Writer
 

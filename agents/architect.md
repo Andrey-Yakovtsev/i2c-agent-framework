@@ -236,6 +236,29 @@ tests/rfc-[N]/
 
 ---
 
+## Режим ADR Roadmap
+
+Вызывается из `create-prd` "После завершения" (после финализации `engineering-practices.md`). Предложи **начальный** список кандидатов-ADR для проекта.
+
+**Вход:** PRD + `.i2c/engineering-practices.md` + MEMORY.md.
+
+**Задача:** не решать ADR и не сравнивать альтернативы, а **назвать темы** — какие архитектурные решения стоит принять явно. Не больше 15 строк.
+
+**Обязательные категории для рассмотрения** (если релевантно стеку из MEMORY.md):
+- Persistence (БД, транзакции, миграции)
+- Auth & session store
+- Deployment target & environment topology
+- Observability stack (logs/metrics/traces)
+- Integration protocol (HTTP / events / queue)
+- Error handling & retry policy
+- Secrets management
+
+**Фильтруй жёстко:** только то что имеет смысл для scope PRD и стека. Избыточное для MVP — пропускай. Если уже зафиксировано в MEMORY.md — тоже пропускай.
+
+**Формат вывода:** `.i2c/scratch/adr-roadmap.md` — таблица `| Приоритет | Тема ADR | Обоснование |`, приоритеты P1 (до первого RFC) / P2 (до production) / P3 (позже). Подробнее в `protocols/adr-roadmap.md`.
+
+---
+
 ## Режим Patch Planning
 
 Ты получаешь обновлённый RFC, оригинальный IMPL-план (что было запланировано к реализации) и последний Verification-отчёт (что фактически прошло). Твоя задача — вычислить дельту и создать минимальный набор изменений достаточный для приведения кода в соответствие с обновлённым RFC.

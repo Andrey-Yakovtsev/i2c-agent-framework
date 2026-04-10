@@ -17,6 +17,7 @@
 2. Прочитай `.i2c/config.md` — контекст проекта
 3. Прочитай `.i2c/MEMORY.md` — все принятые решения (если файл существует)
 4. Прочитай `.i2c/GOALS.md` — текущие цели (если файл существует)
+5. Если существует `.i2c/context-schema.md` — читай его **в начале каждого шага** пайплайна для определения списка обязательных входов (см. "Правило 3 — State-machine дисциплина")
 
 Если `.i2c/` не существует — скажи пользователю: "Проект не инициализирован. Запусти `/i2c-setup`."
 
@@ -89,6 +90,22 @@
 1. Делегируй задачу субагенту → получи короткое подтверждение
 2. Обнови `pipeline_state.json`
 3. Когда нужно передать результат следующему → прочитай файл → передай → забудь
+
+**Правило 3 — State-machine дисциплина (обязательное).**
+
+Ты — **stateless interpreter между шагами**. Не полагайся на память. Перед **каждым** шагом пайплайна:
+
+1. Re-read `.i2c/pipeline_state.json` → узнай `current_step`.
+2. Re-read `.i2c/context-schema.md` → найди секцию текущего шага → получи список обязательных входов.
+3. Re-read эти входы fresh.
+4. Сформируй prompt субагенту с готовыми входами.
+5. После завершения субагента — обнови `pipeline_state.json` и переходи к следующему шагу, снова с пункта 1.
+
+**Почему так.** Qwen-Code сжимает контекст в длинных сессиях. Если ты держал в голове "MEMORY.md выглядит вот так, я его прочитал 10 шагов назад" — после сжатия это исчезнет. Если ты каждый раз re-read с диска — сжатие ничего не ломает.
+
+Субагент context-schema **не** читает: он получает готовые входы в промпте. Догадываться субагент не должен и не может самодиагностировать потерю контекста.
+
+Если `.i2c/context-schema.md` отсутствует (старый проект) — используй дефолтные reads из описания команды ниже.
 
 ---
 
@@ -249,6 +266,39 @@ Qwen-Code поддерживает только `general-purpose` и `Explore` �
 Субагент пишет файл: `.i2c/scratch/prd-review.md`
 Обнови `pipeline_state.json`: `scratch_files.review: ".i2c/scratch/prd-review.md"`.
 
+### Шаг 3.5 — Clarification Loop (только для `create-prd`)
+
+Прочитай `.i2c/scratch/prd-review.md`. Проверь секцию **"Открытые вопросы (требуют ответа человека)"**. Если она пуста — пропусти шаг, переходи к Шагу 4.
+
+Иначе — запусти цикл уточнений, **максимум 3 итерации**, счётчик `clarify_round` в `pipeline_state.json`:
+
+1. Сгруппируй вопросы по теме: user / сценарии / метрики / границы MVP. На каждой итерации задай пользователю **одной batch-пачкой только вопросы по одной теме** (не все сразу — это перегружает).
+
+   Формат:
+   ```
+   Нужно уточнить [тему]. Пожалуйста, ответь на следующие вопросы:
+   1. [вопрос]
+   2. [вопрос]
+   3. [вопрос]
+   ```
+
+2. Жди ответа пользователя. Сохрани ответы в `.i2c/scratch/prd-answers-r[clarify_round].md`.
+
+3. Делегируй задачу субагенту `architect` (режим "PRD") с входами:
+   - `.i2c/scratch/prd-draft.md` (текущий)
+   - `.i2c/scratch/prd-answers-r[clarify_round].md`
+   - `.i2c/MEMORY.md`
+
+   Субагент **перезаписывает** `.i2c/scratch/prd-draft.md`.
+
+4. Делегируй задачу субагенту `critic` (режим "PRD") — **перезаписывает** `.i2c/scratch/prd-review.md`.
+
+5. Инкремент `clarify_round`. Если секция "Открытые вопросы" теперь пуста ИЛИ `clarify_round >= 3` → выход из цикла.
+
+6. Иначе — следующая итерация.
+
+После выхода продолжай Шаг 4 (Writer).
+
 ### Шаг 4 — Writer
 Обнови `pipeline_state.json`: добавь `"critic"` в `completed_steps`, `current_step: "writer"`.
 Делегируй задачу субагенту `writer`.
@@ -318,11 +368,38 @@ Qwen-Code поддерживает только `general-purpose` и `Explore` �
    [Паттерн от Supervisor — вставить блок из post-review]
    ```
 4. Сообщи пользователю: PRD готов, путь к файлу, открытые вопросы.
-5. Запусти `researcher` в режиме "Engineering Practices":
+
+5. **Practices pipeline** (Researcher → Critic → Writer):
+
+   5a. Делегируй `researcher` в режиме "Engineering Practices":
    - Передай: `docs/PRD.md`, `.i2c/config.md`, `.i2c/MEMORY.md`
-   - Субагент пишет: `.i2c/engineering-practices.md`
-   - Покажи результат пользователю для подтверждения
-6. Обнови `.i2c/GOALS.md`: "Практики определены. Следующий: `/i2c-create-adr`"
+   - Субагент пишет: `.i2c/scratch/practices-draft.md` (≤400 слов)
+
+   5b. Делегируй `critic` в режиме "Engineering Practices":
+   - Передай: `.i2c/scratch/practices-draft.md`, `.i2c/MEMORY.md`, `docs/PRD.md`, `.i2c/framework/protocols/code-quality.md`
+   - Субагент пишет: `.i2c/scratch/practices-review.md` (≤300 слов)
+   - Проверяет: каждая обязательная практика оправдана стеком? нет избыточных для MVP? не противоречит MEMORY.md? покрыты тестовые политики?
+
+   5c. Делегируй `writer` для финализации:
+   - Передай: `.i2c/scratch/practices-draft.md`, `.i2c/scratch/practices-review.md`, `.i2c/MEMORY.md`
+   - Субагент пишет: `.i2c/engineering-practices.md` (финал, ≤400 слов)
+
+   5d. Покажи результат пользователю для подтверждения.
+
+6. **ADR Roadmap** (см. `.i2c/framework/protocols/adr-roadmap.md`):
+
+   Делегируй `architect` в режиме "ADR Roadmap":
+   - Передай: `docs/PRD.md`, `.i2c/engineering-practices.md`, `.i2c/MEMORY.md`
+   - Субагент пишет: `.i2c/scratch/adr-roadmap.md` (таблица `| Приоритет | Тема ADR | Обоснование |`, максимум 15 строк)
+
+   Слей содержимое в `.i2c/GOALS.md` в секцию "Запланированные ADR (initial cut)". Каждая строка:
+   ```
+   - [ ] ADR: [тема] [P1|P2|P3] — [обоснование]
+   ```
+   Добавь disclaimer в начало секции:
+   > **Это первоначальный список. По мере принятия ADR могут появляться новые кандидаты.**
+
+7. Обнови `.i2c/GOALS.md`: "Практики определены, ADR roadmap сформирован. Следующий: `/i2c-create-adr`"
 
 ---
 
@@ -847,10 +924,12 @@ Supervisor проверяет:
     Делегируй general-purpose субагенту:
       - Прочитай RFC: docs/rfc/RFC-[N]-*.md
       - Прочитай AC Checklist: .i2c/scratch/rfc-[N]-ac-checklist.md
+      - Прочитай Engineering Practices: .i2c/engineering-practices.md (ОБЯЗАТЕЛЬНО)
       - Прочитай MEMORY.md: .i2c/MEMORY.md
       - Твоя задача: [задача модуля из IMPL]
       - Пиши код в: [файлы модуля]
       - ВАЖНО: перед началом и после завершения модуля — сверься с AC Checklist
+      - ВАЖНО: код должен соответствовать engineering-practices (архитектурные паттерны, обязательные/избыточные практики)
       - После завершения: запиши отчёт в .i2c/scratch/impl-[N]-module-[M]-report.md
 
 Группа B — test-writer агенты (по файлам из test-plan):
@@ -859,8 +938,10 @@ Supervisor проверяет:
       - Прочитай RFC: docs/rfc/RFC-[N]-*.md
       - Прочитай MEMORY.md: .i2c/MEMORY.md
       - Прочитай test-plan: .i2c/scratch/test-[N]-plan.md
+      - Прочитай Engineering Practices: .i2c/engineering-practices.md § Testing (если есть)
       - Пиши тесты в: [файл из test-plan]
       - НЕ читай файлы реализации
+      - Тесты должны соответствовать тестовым политикам из practices (unit isolation, mocking policy)
       - После завершения: запиши отчёт в .i2c/scratch/test-[N]-write-report.md
 ```
 

@@ -49,14 +49,14 @@ Supervisor проверяет: RFC ACCEPTED? Зависимости реализ
 
 Прочитай финальный план.
 
-**Группа A — coding-агенты:** для каждого модуля/задачи из плана запусти `agents/coder.md`.
-Передай: RFC, MEMORY.md, задачу из плана, целевые файлы, `rfc-[N]-ac-checklist.md`.
-Агент читает `protocols/code-quality.md`; при наличии секции безопасности — `protocols/secure-code.md`.
-**patch:** добавь "НЕ ТРОГАЙ unchanged-модули", "расширяй, не перезаписывай".
-Каждый пишет отчёт: `.i2c/scratch/{PREFIX}-module-[M]-report.md`
+**Группа A — coding-агенты:** для каждого модуля/задачи запусти `agents/coder.md`.
+Передай: RFC, MEMORY.md, задачу, целевые файлы, `rfc-[N]-ac-checklist.md`, `.i2c/engineering-practices.md`.
+Агент читает `protocols/code-quality.md`; при секции безопасности — `protocols/secure-code.md`.
+**patch:** "НЕ ТРОГАЙ unchanged", "расширяй, не перезаписывай".
+Отчёт: `.i2c/scratch/{PREFIX}-module-[M]-report.md`
 
-**Группа B — test-writer агенты:** `agents/test-writer.md`.
-Передай: RFC, MEMORY.md, test-plan. НЕ читай файлы реализации.
+**Группа B — test-writer:** `agents/test-writer.md`.
+Передай: RFC, MEMORY.md, test-plan, `.i2c/engineering-practices.md` (секция Testing). НЕ читай реализацию.
 **full:** для каждого тест-файла из test-plan.
 **patch:** только для new_ac.
 Пишет: `.i2c/scratch/{PREFIX}-test-report.md`
