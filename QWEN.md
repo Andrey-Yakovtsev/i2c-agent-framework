@@ -729,7 +729,7 @@ RFC зависимые от этого ADR: [список]
 После ACCEPTED:
 1. Обновляет `docs/ADR-[N]-*.md` (добавляет секцию `## История изменений`)
 2. Обновляет `.i2c/MEMORY.md`
-3. Если breaking → обнови `.i2c/dependency-graph.json`: `flag_for_review` для downstream RFC. Зависимые RFC в "Технический долг" MEMORY.md
+3. Если breaking → обнови `.i2c/dependency-graph.json`: `flag_for_review` для downstream RFC. Зависимые RFC в § Tech Debt MEMORY.md
 4. Выведи список команд для обновления затронутых RFC (топологический порядок):
    ```
    Затронутые RFC (рекомендуемый порядок):
@@ -899,7 +899,7 @@ Supervisor проверяет:
 Делегируй задачу general-purpose субагенту.
 
 Передай ему:
-- Содержимое `.i2c/MEMORY.md` (секция "Технологический стек")
+- Содержимое `.i2c/MEMORY.md` (секция § Tech Stack)
 - Содержимое `docs/impl/IMPL-[N]-[slug].md`
 - Инструкцию:
 
@@ -1089,8 +1089,8 @@ Supervisor проверяет:
 При любом HALT: обнови `pipeline_state.json` → `"status": "halted"`, `"halt_reason": "[состояние]"`. Записывать в JOURNAL.md не нужно — только при SUCCESS.
 
 **После завершения (только при SUCCESS):**
-1. Обнови `.i2c/MEMORY.md` — добавь в таблицу "Принятые решения по компонентам": RFC-[N], ключевые решения, отклонения от спеки
-2. Обнови RTM в `.i2c/MEMORY.md`: для всех строк где RFC = RFC-[N], установи статус `✅ Verified` (если VERIFIED) или `⚠️ Partial` (если были отклонения от AC)
+1. Обнови `.i2c/MEMORY.md` — добавь в таблицу § Decisions: RFC-[N], ключевые решения, отклонения от спеки
+2. Обнови § RTM в `.i2c/MEMORY.md`: для всех строк где RFC = RFC-[N], установи статус `✅ Verified` (если VERIFIED) или `⚠️ Partial` (если были отклонения от AC)
 3. Запиши в `.i2c/JOURNAL.md`:
    ```
    ## [дата] RFC-[N] реализован

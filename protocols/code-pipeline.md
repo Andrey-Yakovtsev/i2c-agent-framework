@@ -6,16 +6,15 @@
 
 | Параметр | Описание |
 |----------|----------|
-| `MODE` | `full` (code-rfc) или `patch` (patch-rfc) |
+| `MODE` | `full` (code-rfc) / `patch` (patch-rfc) |
 | `N` | Номер RFC |
-| `AUTO_FLAG` | `--auto` → `mode: "bypassPermissions"`, иначе → `mode: "dontAsk"` |
-| `PLAN_SOURCE` | full: RFC + MEMORY; patch: RFC + IMPL + verification-отчёт |
-| `PREFIX` | `impl-[N]` (full) или `patch-[N]` (patch) |
+| `AUTO_FLAG` | `--auto` → `bypassPermissions`, иначе → `dontAsk` |
+| `PREFIX` | `impl-[N]` / `patch-[N]` |
 
-## Шаг 0 — Supervisor: Pre-flight
+## Шаг 0 — Supervisor Pre-flight
 
-Передай: RFC-[N] + специфичные для MODE входы (см. оркестратор).
-Supervisor проверяет: RFC ACCEPTED? Зависимости реализованы? Нет дублей?
+Передай RFC-[N] + MODE-специфичные входы (см. оркестратор).
+Проверки: RFC ACCEPTED? Зависимости реализованы? Нет дублей?
 
 ## Шаг 1 — Architect (Planning)
 
@@ -45,27 +44,24 @@ Supervisor проверяет: RFC ACCEPTED? Зависимости реализ
 Проверь `Dockerfile`/`docker-compose.yml`. Контейнер запущен → пропусти.
 Иначе: `agents/env-bootstrap.md`. При FAILED → `HALT_ENV_SETUP_FAILED`.
 
-## Шаг 4 — Параллельный запуск coding + test-writer
+## Шаг 4 — Coding + test-writer
 
 Прочитай финальный план.
 
-**Группа A — coding-агенты:** для каждого модуля/задачи запусти `agents/coder.md`.
-Передай: RFC, MEMORY.md, задачу, целевые файлы, `rfc-[N]-ac-checklist.md`, `.i2c/engineering-practices.md`.
+**Группа A — coding-агенты** (`agents/coder.md`, по модулю на агента):
+Передай RFC, MEMORY.md, задачу, целевые файлы, `rfc-[N]-ac-checklist.md`, `.i2c/engineering-practices.md`.
 Агент читает `protocols/code-quality.md`; при секции безопасности — `protocols/secure-code.md`.
-**patch:** "НЕ ТРОГАЙ unchanged", "расширяй, не перезаписывай".
+**patch:** "НЕ ТРОГАЙ unchanged, расширяй, не перезаписывай".
 Отчёт: `.i2c/scratch/{PREFIX}-module-[M]-report.md`
 
-**Группа B — test-writer:** `agents/test-writer.md`.
-Передай: RFC, MEMORY.md, test-plan, `.i2c/engineering-practices.md` (секция Testing). НЕ читай реализацию.
-**full:** для каждого тест-файла из test-plan.
-**patch:** только для new_ac.
+**Группа B — test-writer** (`agents/test-writer.md`):
+Передай RFC, MEMORY.md, test-plan, `.i2c/engineering-practices.md` § Testing. НЕ читать реализацию.
+**full:** по тест-файлу из плана. **patch:** только для new_ac.
 Пишет: `.i2c/scratch/{PREFIX}-test-report.md`
 
-Обе группы **в одном сообщении**. Последующие волны coding — без test-writer.
+**Волны:** если в плане есть `Зависит от:` между модулями — запускай волнами по топ-сорту. Группы A+B стартуют **в одном сообщении** первой волны. Test-writer — только в первой волне; последующие волны (зависимые модули, retry из Verification) — только coding.
 
-**После завершения — тест-раннер:**
-Запусти субагент: тесты (команда из MEMORY.md) → `.i2c/scratch/{PREFIX}-test-results.md`.
-Формат: `| Тест | AC | [Тип] | Статус | Stacktrace |` (Тип existing/new — patch only).
+**Тест-раннер** (после завершения всех волн): команда из MEMORY.md → `.i2c/scratch/{PREFIX}-test-results.md`, формат `| Тест | AC | [Тип] | Статус | Stacktrace |` (Тип existing/new — patch only).
 
 ## Шаг 5 — Verification
 
@@ -87,8 +83,8 @@ Supervisor проверяет: RFC ACCEPTED? Зависимости реализ
 ## После SUCCESS
 
 1. `pipeline_state.json` → `"status": "done"`
-2. Обнови MEMORY.md: "Принятые решения по компонентам" + RTM (`✅ Verified` / `⚠️ Partial`)
-3. Отклонения AC/RFC → "Технический долг" MEMORY.md
+2. Обнови MEMORY.md: § Decisions + § RTM (`✅ Verified` / `⚠️ Partial`)
+3. Отклонения AC/RFC → § Tech Debt MEMORY.md
 4. JOURNAL.md: файлы, покрытие, отклонения, tech debt
 5. **patch:** обнови `docs/impl/IMPL-[N]-*.md` — `## История изменений`
 6. Обнови `dependency-graph.json`: IMPL node + edge `implements` к RFC-[N]

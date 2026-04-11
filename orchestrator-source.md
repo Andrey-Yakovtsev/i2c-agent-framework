@@ -81,8 +81,6 @@
 
 ## Команда: `setup`
 
-> Прочитай `~/i2c-agent-framework/protocols/create-pipeline.md` — он НЕ нужен для setup, но знай что он есть.
-
 Интерактивная конфигурация после `install.sh`. Структура `.i2c/` уже создана.
 
 **Шаг 0** — спроси тип: [1] Новый проект, [2] Существующий.
@@ -104,9 +102,14 @@
 
 ## Команда: `status`
 
-1. Проверь файлы: `docs/PRD.md`, `docs/ADR-*.md`, `docs/rfc/RFC-*.md`
+1. Проверь файлы: `docs/PRD.md`, `docs/ADR-*.md`, `docs/rfc/RFC-*.md`, `docs/impl/IMPL-*.md`
 2. Прочитай JOURNAL.md — последние 5 записей
-3. Выведи: что создано (с датами), что следующее (из GOALS.md), открытые вопросы
+3. Прочитай GOALS.md § "Текущая стадия" и § "Следующий шаг"
+4. Выведи: что создано (с датами), текущая стадия, следующий шаг, открытые вопросы
+5. **Если `docs/` пуст или отсутствует PRD** — явно подскажи ramp-up:
+   - Новый проект → `/i2c-create-prd`
+   - Existing project со Stage 0 Аудит в GOALS.md → `/i2c-create-prd` (после подтверждения MEMORY.md) **или** `/i2c-rebuild-graph` (если в `docs/` уже лежат артефакты вне графа)
+6. Если есть `dependency-graph.json` с `planned` RFC → предложи `/i2c-auto --from=rfc` или следующий `/i2c-create-rfc` из топ-сорта
 
 ---
 
@@ -133,8 +136,8 @@
 ## Команда: `check`
 
 1. Прочитай все документы из `docs/`
-2. Запусти `diagnostics/review-checklist.md`
-3. Выведи summary: консистентно / конфликтует / отсутствует
+2. Запусти `diagnostics/review-checklist.md` в full mode → отчёт в `.i2c/scratch/consistency-report.md`
+3. Выведи summary из отчёта: консистентно / конфликтует / отсутствует
 
 ---
 
@@ -184,7 +187,9 @@
 **Определи номер ADR:** следующий после существующих `docs/ADR-*.md`.
 **Когда нужен:** решение трудно отменить, значимые трейдоффы, влияет на несколько RFC.
 
-**После завершения (дополнительно):** если ADR содержит секцию "Необходимые RFC" → добавь planned nodes в `dependency-graph.json` по `protocols/rfc-roadmap.md`. Обнови GOALS.md порядком создания RFC.
+**После завершения (дополнительно):**
+1. Если ADR содержит секцию "Необходимые RFC" → добавь planned nodes в `dependency-graph.json` по `protocols/rfc-roadmap.md`. Обнови GOALS.md порядком создания RFC.
+2. **Рост ADR backlog:** перечитай секции "Последствия" → "Что это открывает" и "Триггеры пересмотра" принятого ADR. Если в них упомянуты решения, которые сами требуют отдельного ADR (и их нет в GOALS.md § "Запланированные ADR") → добавь их туда строкой `- [ ] ADR: [тема] [P?] — [обоснование]`. Отметь в ответе пользователю: «добавлено N новых кандидатов ADR в backlog».
 
 ---
 
@@ -236,7 +241,7 @@
 **После ACCEPTED:**
 1. Обнови ADR (добавь `## История изменений` с типом)
 2. Обнови MEMORY.md
-3. Если breaking → обнови `dependency-graph.json`: `flag_for_review` для всех downstream nodes (`protocols/dependency-graph.md`). Зависимые RFC в "Технический долг" MEMORY.md
+3. Если breaking → обнови `dependency-graph.json`: `flag_for_review` для всех downstream nodes (`protocols/dependency-graph.md`). Зависимые RFC в § Tech Debt MEMORY.md
 4. Выведи список команд для обновления затронутых RFC (топологический порядок):
    ```
    Затронутые RFC (рекомендуемый порядок):
@@ -257,9 +262,9 @@ Architect анализирует дельту между текущим RFC и �
 
 **После ACCEPTED:**
 1. Обнови RFC (добавь `## История изменений` с описанием что и почему)
-2. Обнови MEMORY.md, очисти запись Tech Debt для этого RFC
+2. Обнови MEMORY.md, очисти запись § Tech Debt для этого RFC
 3. Обнови `dependency-graph.json`
-4. Если у RFC есть downstream IMPL → добавь IMPL в Tech Debt, предложи `/i2c-patch-rfc [N]`
+4. Если у RFC есть downstream IMPL → добавь IMPL в § Tech Debt, предложи `/i2c-patch-rfc [N]`
 
 ---
 
@@ -348,6 +353,12 @@ Meta-команда. Автономный цикл: создаёт все planne
 2. Спроси пользователя где реализация (если неочевидно)
 3. Запусти Verification Cycle (см. `protocols/verification-cycle.md`)
 4. Выведи отчёт, запиши в JOURNAL.md
+
+---
+
+## Команда: `framework-update`
+
+**Bootstrap-команда.** Единственная, которая не делегируется в этот файл — инструкции встроены в `commands/i2c-framework-update.md` (git pull + re-install). Причина: она обновляет сам оркестратор, поэтому не может зависеть от его текущей версии.
 
 ---
 
