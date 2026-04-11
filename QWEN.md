@@ -49,11 +49,20 @@
 
 > `fixes_round` — используется в `code-rfc` для отслеживания раундов исправлений (Failure Budget).
 
+**Опциональные поля для meta-команд (например `auto`):**
+```json
+"parent_command": "auto",
+"parent_state_file": ".i2c/auto_state.json"
+```
+
+Когда эти поля установлены, **после завершения sub-pipeline** (status=done) оркестратор НЕ сообщает пользователю "готово", а возвращает управление в meta-команду (см. `## Команда: auto`).
+
 **Правила:**
 - Обновляй `current_step` и `completed_steps` перед запуском каждого субагента
 - При успешном завершении всего пайплайна: `"status": "done"`
 - При abandon: `"status": "abandoned"`
 - Поля `scratch_files` обновляй по мере создания файлов
+- Если `parent_command` установлен — обязательно проверь его в финале перед выходом
 
 ### Запись файлов
 
@@ -179,25 +188,48 @@ Qwen-Code поддерживает только `general-purpose` и `Explore` �
 
 ## Команда: `resume`
 
-Продолжить прерванный пайплайн.
+Продолжить прерванный пайплайн. **Двухуровневый resume:** сначала проверяем `auto_state.json`, потом обычный `pipeline_state.json`.
 
 **Шаги:**
-1. Прочитай `.i2c/pipeline_state.json`
-2. Если файл пуст или `status != "in_progress"` — сообщи: "Нет активного пайплайна для продолжения."
-3. Если `status: "in_progress"` — покажи:
-   ```
-   ⚠️ Незавершённый пайплайн: [command] [argument]
-   Завершённые шаги: [completed_steps]
-   Следующий шаг: [current_step]
 
-   [1] resume  — продолжить с шага [current_step]
-   [2] restart — начать заново
-   [3] abandon — отменить, очистить scratch
+1. Прочитай `.i2c/auto_state.json` (если есть).
+
+2. **Если `auto_state.status == "halted"`:**
    ```
-4. Жди ответа. Действуй по выбору:
-   - `resume`: запусти пайплайн начиная с `current_step`, передавая уже созданные `scratch_files`
-   - `restart`: очисти `pipeline_state.json` и `scratch/`, запусти команду заново
-   - `abandon`: запиши `"status": "abandoned"` в pipeline_state.json, очисти scratch/
+   ⚠️ Auto-цикл остановлен: [halt_reason]
+   Текущая цель: [current_target] ([current_phase])
+   Завершено: [completed.length] шагов
+
+   [1] retry   — повторить текущую цель (предполагается что пользователь исправил проблему)
+   [2] skip    — пропустить текущую цель, перейти к следующей
+   [3] abandon — выйти из auto-цикла
+   ```
+   - `retry`: сбрось `pipeline_state.json` в `{}`, сбрось `auto_state.current_target/current_phase`, продолжай auto-loop
+   - `skip`: добавь current_target в `completed` как skipped, сбрось `current_target`, продолжай auto-loop
+   - `abandon`: `auto_state.status = "done"`, `halt_reason = "user abandoned"`, `pipeline_state` → `{}`
+
+3. **Если `auto_state.status == "running"`:**
+   - Прочитай `.i2c/pipeline_state.json`
+   - Если `in_progress` — продолжай inner sub-pipeline (см. пункт 4). Auto автоматически подхватит после его завершения.
+   - Если пуст или done — продолжай auto-loop с следующей итерации (делегируй в `auto-pipeline.md`).
+
+4. **Если `auto_state.json` нет ИЛИ `status=done`:**
+   - Прочитай `.i2c/pipeline_state.json`
+   - Если файл пуст или `status != "in_progress"` — сообщи: "Нет активного пайплайна для продолжения."
+   - Если `status: "in_progress"` — покажи:
+     ```
+     ⚠️ Незавершённый пайплайн: [command] [argument]
+     Завершённые шаги: [completed_steps]
+     Следующий шаг: [current_step]
+
+     [1] resume  — продолжить с шага [current_step]
+     [2] restart — начать заново
+     [3] abandon — отменить, очистить scratch
+     ```
+   - Жди ответа. Действуй по выбору:
+     - `resume`: запусти пайплайн начиная с `current_step`, передавая уже созданные `scratch_files`
+     - `restart`: очисти `pipeline_state.json` и `scratch/`, запусти команду заново
+     - `abandon`: запиши `"status": "abandoned"` в pipeline_state.json, очисти scratch/
 
 ---
 
@@ -1071,6 +1103,149 @@ Supervisor проверяет:
 
 ---
 
+## Команда: `auto [--from=rfc|code] [--halt-on-clarify]`
+
+Meta-команда. Автономный цикл: создаёт все planned RFC и реализует их через code-rfc секвенциально в топологическом порядке. **Не трогает PRD и ADR** — они должны быть уже приняты человеком.
+
+**Неявно включает `--auto` семантику** для всех внутренних вызовов code-rfc (субагенты работают без запросов подтверждения).
+
+**Аргументы:**
+- `--from=rfc` (default) — создаёт все `status=planned` RFC, затем реализует каждый
+- `--from=code` — только реализация: все `status=accepted` RFC без IMPL node проходят через code-rfc
+- `--halt-on-clarify` — вместо конвертации CLARIFY → APPROVE_WITH_ASSUMPTIONS просто HALT
+
+**Предусловия (проверить первыми):**
+1. `docs/PRD.md` существует
+2. `.i2c/engineering-practices.md` существует
+3. `.i2c/dependency-graph.json` существует
+4. `.i2c/pipeline_state.json` не in_progress (иначе предложи `/i2c-resume`)
+5. Для `--from=rfc`: `.i2c/GOALS.md` "Запланированные ADR" пуста, либо пользователь подтвердил "продолжить без новых ADR"
+
+Если не выполнено → `HALT_PRECONDITIONS_MISSING` с пояснением.
+
+### Инициализация `auto_state.json`
+
+```json
+{
+  "command": "auto",
+  "from_stage": "rfc",
+  "halt_on_clarify": false,
+  "status": "running",
+  "halt_reason": null,
+  "current_target": null,
+  "current_phase": null,
+  "completed": [],
+  "started_at": "[ISO timestamp]",
+  "updated_at": "[ISO timestamp]"
+}
+```
+
+### Meta-loop (state-machine)
+
+**Каждую итерацию:**
+
+1. Re-read `.i2c/dependency-graph.json`, `.i2c/auto_state.json`, `.i2c/pipeline_state.json` (state-machine дисциплина — не полагайся на память)
+2. **Decision tree:**
+
+   **a) `pipeline_state.in_progress` И `parent_command=auto`:**
+      Продолжи inner sub-pipeline. Когда он завершится, проверь `parent_command` — вернёшься сюда на следующую итерацию.
+
+   **b) `pipeline_state.in_progress` И `parent_command != auto`:**
+      Ошибка: кто-то другой запустил pipeline. Установи `auto_state.status = "halted"`, `halt_reason = "concurrent pipeline"`, выйди.
+
+   **c) `pipeline_state` пуст или `status=done`:**
+      Выбери следующий target из графа:
+
+      - **Если `--from=rfc`**, найди RFC nodes с `status=planned` → топологическая сортировка → возьми первый:
+        ```
+        Установи pipeline_state.json:
+        {
+          "command": "create-rfc",
+          "argument": "<description из graph>",
+          "status": "in_progress",
+          "current_step": "supervisor-preflight",
+          "parent_command": "auto",
+          "parent_state_file": ".i2c/auto_state.json",
+          ...
+        }
+        Обнови auto_state.current_target = "RFC-N", current_phase = "create-rfc"
+        Делегируй выполнение команды `create-rfc` (см. её секцию выше).
+        ```
+
+      - **Иначе** найди RFC nodes с `status=accepted` без исходящего edge `implements` → топологическая сортировка → возьми первый:
+        ```
+        Установи pipeline_state.json:
+        {
+          "command": "code-rfc",
+          "argument": "<N> --auto",
+          "parent_command": "auto",
+          "parent_state_file": ".i2c/auto_state.json",
+          ...
+        }
+        Обнови auto_state.current_phase = "code-rfc"
+        Делегируй выполнение команды `code-rfc` (см. её секцию ниже).
+        ```
+
+      - **Ничего нет** → `auto_state.status = "done"`, сообщи пользователю "auto cycle complete. Completed: [список из completed]". Выйди.
+
+3. **После завершения sub-pipeline** (orchestrator видит `pipeline_state.status = done` И `parent_command = auto`):
+   - Добавь запись в `auto_state.completed`: `{"kind": "create-rfc" или "code-rfc", "id": "RFC-N" или "IMPL-N", "at": "<timestamp>"}`
+   - Обнови `auto_state.updated_at`
+   - **Сбрось** `pipeline_state.json` → `{}`
+   - **GOTO** пункт 1 (следующая итерация)
+
+4. **Если sub-pipeline ушёл в HALT** (любой HALT state):
+   - Установи `auto_state.status = "halted"`
+   - Установи `auto_state.halt_reason = <inner halt reason>` (см. таблицу HALT ниже)
+   - Сообщи пользователю:
+     ```
+     ⚠️ Auto-цикл остановлен: [halt_reason]
+     Текущая цель: [current_target] ([current_phase])
+     Завершено: [completed]
+     Запусти /i2c-resume для continue/skip/abandon.
+     ```
+   - Выйди (pipeline_state остаётся в halted)
+
+### Auto-mode в Supervisor Pre-flight
+
+Когда делегируешь `supervisor` в Pre-flight для inner sub-pipeline под auto — **добавь в промпт** явное указание `auto_mode: true`. В auto_mode Supervisor:
+- **CLARIFY** → конвертирует в `APPROVE_WITH_ASSUMPTIONS` (вопросы становятся предположениями в блоке "Допущения"). Исключение: если `--halt-on-clarify` установлен, оставляй CLARIFY — оркестратор это поймает и выдаст `HALT_CLARIFY_REQUIRED`.
+- **SKIP** → элемент пропускается, auto переходит к следующему.
+- **APPROVE/APPROVE_WITH_ASSUMPTIONS** → стандартно.
+
+### Ревизии в auto
+
+Вместо стандартного Revision protocol (Writer #1 → Architect #2 → Human-in-the-loop):
+- Revision #1 и #2 как обычно
+- Вместо Human-in-the-loop (#3) → **HALT** с `halt_reason = "HALT_REVISION_BUDGET"`
+
+### HALT states
+
+| Reason | Триггер |
+|---|---|
+| `HALT_PRECONDITIONS_MISSING` | PRD/practices/graph отсутствуют, или ADR backlog не пуст |
+| `HALT_REVISION_BUDGET` | Inner create-rfc провалил 2 revision |
+| `HALT_CLARIFY_REQUIRED` | `--halt-on-clarify` и Supervisor вернул CLARIFY |
+| `HALT_FAILURE_BUDGET` | Inner code-rfc `fixes_round >= 2` |
+| `HALT_CRITICAL_GAPS` | Inner code-rfc FAIL ≥50% модулей |
+| `HALT_ENV_SETUP_FAILED` | Bootstrap упал |
+| `HALT_POLICY_VIOLATION` | Нарушение MEMORY.md constraint |
+| `HALT_CONSISTENCY` | Scoped Consistency Check — критические проблемы |
+| `HALT_DEPENDENCY_CYCLE` | Цикл в графе RFC зависимостей |
+
+### Логирование
+
+Каждый target записывай в `.i2c/JOURNAL.md`:
+
+```
+## [timestamp] Auto cycle started (from=rfc)
+## [timestamp] RFC-5 created
+## [timestamp] RFC-5 coded (IMPL-5)
+## [timestamp] RFC-6 HALT_FAILURE_BUDGET
+```
+
+---
+
 ## Команда: `verify-rfc [N]`
 
 Проверить что существующая реализация соответствует RFC. Полезно если код был написан вне фреймворка.
@@ -1296,9 +1471,11 @@ Stage 0 — Аудит существующего проекта
 - **Не пропускай Critic** — ни один черновик не идёт к Writer без критического разбора
 - **MEMORY.md — закон** — если в MEMORY.md зафиксировано решение, агенты не переоткрывают его
 - **Revision #1 — Writer, Revision #2 — Architect** — первый фидбек идёт Writer, если не помогло — Architect переделывает черновик с нуля (+ Critic + Writer)
-- **Human-in-the-loop — последний resort** — человек привлекается только после двух неудачных итераций
+- **Human-in-the-loop — последний resort** — человек привлекается только после двух неудачных итераций. **ИСКЛЮЧЕНИЕ:** если `pipeline_state.parent_command == "auto"` — вместо Human-in-the-loop установи `auto_state.status = "halted"`, `halt_reason = "HALT_REVISION_BUDGET"` и выйди (пользователь запустит `/i2c-resume`).
+- **parent_command = "auto"** — если это поле установлено в `pipeline_state.json`, **после завершения sub-pipeline** (status=done) НЕ сообщай пользователю "готово". Вместо этого обнови `auto_state.completed`, сбрось `pipeline_state.json → {}` и верни управление в meta-loop команды `auto`.
 - **Финальный файл — только после ACCEPTED** — документ не попадает в `docs/` пока Supervisor не принял
 - **Обновляй pipeline_state.json на каждом шаге** — это единственный механизм resume
 - **Scratch — временный** — файлы в `.i2c/scratch/` не коммитятся
-- **Один CREATE-пайплайн за раз** — не запускай параллельно два create-* пайплайна. Но `code-rfc(N)` можно запускать параллельно с `create-rfc(M)` если между N и M нет зависимости (N не в `depends_on` M)
+- **Один CREATE-пайплайн за раз** — не запускай параллельно два create-* пайплайна. Но `code-rfc(N)` можно запускать параллельно с `create-rfc(M)` если между N и M нет зависимости (N не в `depends_on` M). **В auto-режиме — только секвенциально**, никаких параллельных запусков.
+- **Supervisor auto-mode** — если ты делегируешь supervisor в Pre-flight под auto (inner sub-pipeline запущен с `parent_command=auto`), передай в промпт `auto_mode: true`. Это превратит CLARIFY в APPROVE_WITH_ASSUMPTIONS (вопросы → предположения в блоке "Допущения"), кроме случая `--halt-on-clarify`.
 - **Всегда обновляй JOURNAL.md** — каждое завершённое действие фиксируется, паттерны от Supervisor — тоже

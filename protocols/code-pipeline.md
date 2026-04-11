@@ -87,9 +87,9 @@ Supervisor проверяет: RFC ACCEPTED? Зависимости реализ
 ## После SUCCESS
 
 1. `pipeline_state.json` → `"status": "done"`
-2. Обнови MEMORY.md: таблица "Принятые решения по компонентам" + RTM (`✅ Verified` или `⚠️ Partial`)
-3. Отклонения от AC/RFC → добавь в "Технический долг" MEMORY.md
-4. Запиши в JOURNAL.md: файлы, AC покрытие, отклонения, tech debt
-5. **patch:** обнови `docs/impl/IMPL-[N]-*.md` — добавь `## История изменений` с новыми AC и файлами
-6. Обнови `.i2c/dependency-graph.json`: добавь/обнови IMPL node + edge `implements` к RFC-[N] (см. `protocols/dependency-graph.md`)
-7. Сообщи пользователю результат
+2. Обнови MEMORY.md: "Принятые решения по компонентам" + RTM (`✅ Verified` / `⚠️ Partial`)
+3. Отклонения AC/RFC → "Технический долг" MEMORY.md
+4. JOURNAL.md: файлы, покрытие, отклонения, tech debt
+5. **patch:** обнови `docs/impl/IMPL-[N]-*.md` — `## История изменений`
+6. Обнови `dependency-graph.json`: IMPL node + edge `implements` к RFC-[N]
+7. Если `pipeline_state.parent_command == "auto"` → верни управление `auto-pipeline.md`. Иначе — сообщи пользователю.

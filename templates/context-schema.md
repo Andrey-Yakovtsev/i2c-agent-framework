@@ -104,6 +104,24 @@ Claude Code и Qwen Code автоматически сжимают истори�
 
 ---
 
+## auto [--from=rfc|code]
+
+**Budget:** ~800 слов (meta-loop, большинство работы делегируется inner sub-pipelines).
+
+- `.i2c/dependency-graph.json` — **обязательно**, основной источник очереди
+- `.i2c/auto_state.json` — состояние meta-loop (создать если нет)
+- `.i2c/pipeline_state.json` — состояние inner sub-pipeline (может быть пустым между итерациями)
+- `docs/PRD.md` — для предусловий и передачи в inner sub-pipelines
+- `.i2c/engineering-practices.md` — для передачи в inner sub-pipelines
+- `.i2c/GOALS.md` — проверка что ADR backlog пуст (для `--from=rfc`)
+- `.i2c/MEMORY.md` § Tech Stack, § Rules
+
+**Lazy:** содержимое конкретных ADR/RFC — читается inner sub-pipelines через их собственные секции этой схемы (create-rfc, code-rfc).
+
+**State-machine flow:** re-read всех перечисленных выше файлов в начале **каждой** итерации meta-loop (см. `protocols/auto-pipeline.md`). Не держи в памяти между итерациями.
+
+---
+
 ## verify-rfc / verification cycle
 
 **Budget:** ~2500 слов.

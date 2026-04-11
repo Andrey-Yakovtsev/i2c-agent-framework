@@ -82,6 +82,7 @@ PRD → ADR → RFC → Implementation Plan → Code + Tests → Verification
 - **Engineering Practices как Constitution:** `.i2c/engineering-practices.md` проходит через Critic-ревью и является **обязательным входом** для Coder и Test Writer. Это де-факто Constitution проекта — cross-cutting concerns (стиль кода, NFR, testing policy) централизованы в одном компактном (≤400 слов) файле и реально потребляются на этапе кодирования.
 - **Declarative Context Recovery:** `.i2c/context-schema.md` формализует правила восстановления контекста агентом для каждого типа задачи — упорядоченные входы, word-бюджет, lazy-условия. Spec Kit и BMAD полагаются на ad-hoc композицию контекста. I2C — единственный фреймворк с явной schema query-операции в духе паттерна LLM-Wiki.
 - **Convergent PRD Clarification Loop:** автоматические batch-вопросы к пользователю до 3 кругов со сходимостью, когда Critic обнаруживает критические gap'ы в PRD. Spec Kit/BMAD требуют от пользователя вручную итеративно правильно формулировать спеку.
+- **Autonomous end-to-end pipeline (`/i2c-auto`):** после того как PRD и ADR приняты человеком, одна команда доводит все оставшиеся RFC до рабочего кода секвенциально в топологическом порядке зависимостей. HALT на безопасных точках (failure budget, revision budget, critical gaps). Resumable после прерывания. Spec Kit и BMAD требуют ручного вызова каждого шага.
 - **Протокол ревизий:** Writer #1 → Architect #2 → Human-in-the-loop. Эскалация структурирована, человек привлекается только после двух неудач.
 - **Минимальный footprint:** устанавливается в конкретный проект, не загрязняет глобальный конфиг. Оркестратор загружается on-demand.
 
@@ -141,6 +142,7 @@ PRD → ADR → RFC → Implementation Plan → Code + Tests → Verification
 | Declarative context recovery schema | ✅ context-schema.md | ❌ | ❌ |
 | Convergent PRD clarification loop | ✅ max 3 batch-круга | ❌ | ⚠️ через персоны |
 | ADR / RFC roadmap auto-generation | ✅ | ❌ | ⚠️ через персоны |
+| Autonomous end-to-end pipeline | ✅ `/i2c-auto` (RFC→code) | ❌ | ⚠️ через персоны |
 | Agent-agnostic (25+ IDE) | ❌ 2 IDE | ✅ | ⚠️ 2-3 IDE |
 | Scale-adaptive depth | ❌ | ❌ | ✅ |
 | Extension system | ❌ | ✅ 40+ | ⚠️ через персоны |

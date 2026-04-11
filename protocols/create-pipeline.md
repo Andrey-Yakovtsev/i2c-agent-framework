@@ -82,6 +82,6 @@
 1. `pipeline_state.json` → `"status": "done"`
 2. Извлеки решения → `.i2c/MEMORY.md`
 3. Запиши в `.i2c/JOURNAL.md` (включая паттерн от Supervisor)
-4. Для RFC: обнови RTM в MEMORY.md (`REQ → RFC-[NNN]`); если создано 3+ RFC — предложи `/i2c-check`
-5. Обнови `.i2c/dependency-graph.json` (см. `protocols/dependency-graph.md`): добавь node для нового артефакта + edges из метаданных (Зависит от, Блокирует, Связанные решения)
-6. Сообщи пользователю: файл готов, путь, открытые вопросы
+4. Для RFC: обнови RTM в MEMORY.md; 3+ RFC — предложи `/i2c-check`
+5. Обнови `dependency-graph.json`: node + edges из метаданных
+6. Если `pipeline_state.parent_command == "auto"` → НЕ сообщай "готово", верни управление в `protocols/auto-pipeline.md`. Иначе — сообщи пользователю: файл, путь, открытые вопросы.

@@ -54,10 +54,16 @@
 
 Если `.i2c/context-schema.md` отсутствует — используй дефолтные reads из описания команды.
 
+### Parent command (meta-pipelines)
+
+`pipeline_state.json` может содержать опциональные поля `parent_command` и `parent_state_file`. Они устанавливаются meta-командами (например `auto`) при запуске sub-pipeline. **После завершения sub-pipeline (status=done)** проверь `parent_command`:
+- Если `"auto"` → НЕ сообщай пользователю "готово". Верни управление в `protocols/auto-pipeline.md` для следующей итерации.
+- Если отсутствует → обычное завершение команды.
+
 ### Вердикты Supervisor Pre-flight
 
 - **SKIP** → сообщи причину, не запускай пайплайн
-- **CLARIFY** → задай вопрос пользователю, жди ответа
+- **CLARIFY** → задай вопрос пользователю, жди ответа (в auto-mode → `APPROVE_WITH_ASSUMPTIONS` с вопросами-допущениями)
 - **APPROVE** → сохрани подсказки, передай следующему агенту
 - **APPROVE_WITH_ASSUMPTIONS** → подсказки + допущения; агент фиксирует в `## Допущения`
 
@@ -67,7 +73,9 @@
 
 **Revision #1 — Writer:** фидбек → Writer перезаписывает `[final]` → Supervisor.
 **Revision #2 — Architect:** фидбек → Architect переделывает `[draft]-r2.md` → Critic → Writer → Supervisor.
-**После 2 неудач** → Human-in-the-loop: [1] publish как есть, [2] retry с новыми инструкциями, [3] abandon.
+**После 2 неудач:**
+- Обычный режим → Human-in-the-loop: [1] publish как есть, [2] retry, [3] abandon
+- Auto-mode (`pipeline_state.parent_command=auto`) → HALT с `halt_reason="HALT_REVISION_BUDGET"`, без human-in-the-loop
 
 ---
 
@@ -104,9 +112,21 @@
 
 ## Команда: `resume`
 
-1. Прочитай `pipeline_state.json`. Если нет активного — сообщи.
-2. Покажи: команда, завершённые шаги, следующий шаг.
-3. Предложи: [1] resume, [2] restart, [3] abandon.
+Двухуровневый resume: сначала проверяем auto-цикл, потом обычный pipeline.
+
+1. Прочитай `.i2c/auto_state.json` (если есть).
+2. Если `auto_state.status == "halted"`:
+   - Покажи `halt_reason`, `current_target`, `completed`
+   - Предложи: [1] retry current target (повторить тот же), [2] skip current (пропустить, идти к следующему), [3] abandon (auto_state→done, pipeline_state→reset)
+   - На выбор — продолжай auto-цикл через `protocols/auto-pipeline.md`
+3. Если `auto_state.status == "running"`:
+   - Читай `pipeline_state.json`
+   - Если `in_progress` → продолжай inner sub-pipeline, auto после его завершения подхватит
+   - Если пуст → продолжай auto-цикл с следующей итерации
+4. Если `auto_state.json` нет или `status=done`:
+   - Прочитай `pipeline_state.json`. Если нет активного — сообщи.
+   - Покажи команду, завершённые шаги, следующий шаг.
+   - Предложи: [1] resume, [2] restart, [3] abandon.
 
 ---
 
@@ -276,6 +296,29 @@ Architect анализирует дельту между текущим RFC и �
 **Отличие от code-rfc:** работает на дельте, без env bootstrap, тесты только для new_ac, полный тест-сюит (регрессия).
 
 **Специфика Pre-flight:** IMPL существует? RFC изменился? Предыдущий HALT?
+
+---
+
+## Команда: `auto [--from=rfc|code] [--halt-on-clarify]`
+
+> Прочитай `~/i2c-agent-framework/protocols/auto-pipeline.md` и следуй ему.
+
+Meta-команда. Автономный цикл: создаёт все planned RFC и реализует их через code-rfc секвенциально, в топологическом порядке. **Не трогает PRD и ADR** — они должны быть уже приняты человеком.
+
+**Аргументы:**
+- `--from=rfc` (default) — create-rfc + code-rfc для всех оставшихся
+- `--from=code` — только code-rfc для accepted RFC без IMPL
+- `--halt-on-clarify` — halt вместо конвертации CLARIFY в допущения
+
+**Читаешь:** `dependency-graph.json`, `auto_state.json`, `pipeline_state.json`, `PRD.md`, `engineering-practices.md`, `MEMORY.md`, `GOALS.md`.
+
+**Неявно включает `--auto` семантику** для всех дочерних `code-rfc` вызовов (bypassPermissions).
+
+**Предусловия проверяет auto-pipeline.md** (PRD, practices, граф, пустой pipeline_state, пустой ADR backlog для --from=rfc).
+
+**Sub-pipelines запускаются с `pipeline_state.parent_command="auto"`** — это триггер для orchestrator не выходить в конце, а возвращать управление в auto-цикл.
+
+**HALT states** перечислены в `protocols/auto-pipeline.md`. На HALT → `auto_state.status="halted"`, `/i2c-resume` предложит retry/skip/abandon.
 
 ---
 

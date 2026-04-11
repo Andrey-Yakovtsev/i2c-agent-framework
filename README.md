@@ -138,6 +138,19 @@ Writer собирает финальный PRD по шаблону.
 /i2c-code-rfc 2 --auto    # без ручных аппрувов
 ```
 
+**Или — автономный цикл от спеки до кода:**
+
+```
+/i2c-auto                 # создаёт все planned RFC + реализует каждый до конца
+/i2c-auto --from=code     # только реализация: все accepted RFC без IMPL
+```
+
+`/i2c-auto` — meta-команда, которая читает `dependency-graph.json` и гонит через цикл `create-rfc → code-rfc` все оставшиеся RFC в топологическом порядке. HALT на `FAILURE_BUDGET`, `REVISION_BUDGET`, `CRITICAL_GAPS` и других безопасных точках. Resumable через `/i2c-resume`. **Неявно включает `--auto`-семантику** для всех внутренних вызовов — отдельно указывать не нужно.
+
+**Разница:**
+- `/i2c-code-rfc N --auto` — один RFC без permission-prompts
+- `/i2c-auto` — цепочка всех оставшихся RFC до конца
+
 Конвейер:
 
 1. **Architect** — параллельно создаёт план реализации и план тестов
@@ -164,6 +177,7 @@ Writer собирает финальный PRD по шаблону.
 | `/i2c-create-adr` | `название решения` | Создаёт Architecture Decision Record |
 | `/i2c-create-rfc` | `название компонента` | Создаёт RFC для компонента |
 | `/i2c-code-rfc` | `N [--auto]` | Реализует компонент по RFC-N. `--auto` — без ручных аппрувов |
+| `/i2c-auto` | `[--from=rfc\|code] [--halt-on-clarify]` | **Автономный цикл:** создаёт все оставшиеся RFC и реализует каждый до конца |
 | `/i2c-verify-rfc` | `N` | Проверяет существующую реализацию против AC из RFC-N |
 | `/i2c-patch-rfc` | `N [--auto]` | Обновляет реализацию после изменения RFC (дельта-патч) |
 | `/i2c-update-prd` | `описание изменений` | Обновляет PRD после пивота |
@@ -308,6 +322,7 @@ i2c-agent-framework/
   protocols/                 ← переиспользуемые протоколы конвейеров
     create-pipeline.md
     code-pipeline.md
+    auto-pipeline.md
     code-quality.md
     secure-code.md
     verification-cycle.md
@@ -321,6 +336,7 @@ i2c-agent-framework/
     i2c-create-adr.md
     i2c-create-rfc.md
     i2c-code-rfc.md
+    i2c-auto.md
     i2c-verify-rfc.md
     i2c-patch-rfc.md
     i2c-update-prd.md
