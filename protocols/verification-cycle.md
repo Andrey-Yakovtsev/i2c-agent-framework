@@ -1,12 +1,12 @@
 # Протокол: Verification Cycle
 
-Анализ тестов и верификация реализации. Используется в `code-rfc`, `patch-rfc`, `verify-rfc`.
+Анализ тестов и верификация реализации. Используется в `code`, `patch-rfc`, `verify-rfc`.
 
 ## 5a — Failure Analyst (если есть FAIL)
 
 Прочитай test-results. Для каждого FAIL запусти `agents/failure-analyst.md` **параллельно**.
 Передай каждому: RFC, код теста, stacktrace, файл реализации, текст AC.
-**patch:** добавь тип теста (existing/new). existing + CODE_BUG = регрессия.
+**patch/feature:** добавь тип теста (existing/new). existing + CODE_BUG = регрессия.
 Все пишут в один файл: `.i2c/scratch/{PREFIX}-failure-analysis.md`
 
 Если все PASS → пропусти.
@@ -21,7 +21,7 @@
 - FAIL + CODE_BUG → [ТОЧНО], блокирует
 - FAIL + TEST_BUG → не проблема кода
 - FAIL + AMBIGUOUS → "Открытые вопросы", не блокирует
-- **patch:** unchanged-AC не проверять; сверять против обновлённого RFC
+- **patch/feature:** unchanged-AC не проверять; новые/изменённые AC сверять против актуального RFC и плана
 
 Пишет: `.i2c/scratch/{PREFIX}-verification.md`
 

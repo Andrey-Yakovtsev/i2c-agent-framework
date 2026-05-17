@@ -47,7 +47,7 @@
 }
 ```
 
-> `fixes_round` — используется в `code-rfc` для отслеживания раундов исправлений (Failure Budget).
+> `fixes_round` — используется в `code` для отслеживания раундов исправлений (Failure Budget).
 
 **Опциональные поля для meta-команд (например `auto`):**
 ```json
@@ -815,11 +815,13 @@ RFC зависимые от этого ADR: [список]
 
 ---
 
-## Команда: `code-rfc [N]`
+## Команда: `code [--rfc N | --feature N "описание"] [--auto]`
 
-Реализовать компонент по RFC. Оркестратор создаёт Implementation Plan, затем делегирует coding-агентам.
+Два режима:
+- `--rfc N` (или голый номер) — реализовать компонент по RFC-N с нуля. Оркестратор создаёт Implementation Plan, затем делегирует coding-агентам. Это режим по умолчанию: шаги 0–5 ниже описывают именно его.
+- `--feature N "описание"` — добавить новую фичу в **уже реализованный** код RFC-N. Отличия — в подразделе «Feature-режим» в конце этой команды.
 
-**Флаг `--auto`:** если передан аргумент `--auto` (например, `code-rfc 3 --auto`), при делегировании каждому субагенту добавляй в конец промпта фразу: "Авто-режим: выполняй все операции без запроса подтверждения у пользователя." Без флага — стандартный режим.
+**Флаг `--auto`:** если передан аргумент `--auto` (например, `code --rfc 3 --auto`), при делегировании каждому субагенту добавляй в конец промпта фразу: "Авто-режим: выполняй все операции без запроса подтверждения у пользователя." Без флага — стандартный режим.
 
 **Читаешь перед стартом:**
 - `docs/rfc/RFC-[N]-*.md` — спека для реализации
@@ -845,10 +847,11 @@ Supervisor проверяет:
 **Если CLARIFY** — задай вопрос пользователю, дождись ответа, затем продолжи.
 **Если APPROVE** — продолжай.
 **Если APPROVE_WITH_ASSUMPTIONS** — сохрани список допущений, передай их Architect (Planning); Architect фиксирует допущения в плане реализации.
+**Если REDIRECT** (только feature-режим) — фича слишком крупная/архитектурная: не запускай пайплайн, удали pipeline_state.json, предложи пользователю `/i2c-create-adr` или `/i2c-create-rfc`.
 
 ### Шаг 1 — Architect (Planning + Test Planning)
 
-Обнови `pipeline_state.json`: `command: "code-rfc"`, `argument: "[N]"`, `current_step: "architect-planning"`.
+Обнови `pipeline_state.json`: `command: "code"`, `argument: "[N]"`, `current_step: "architect-planning"`.
 
 Делегируй **двум субагентам параллельно**:
 
@@ -1075,7 +1078,7 @@ Supervisor проверяет:
 
 ---
 
-### Терминальные состояния code-rfc
+### Терминальные состояния code
 
 | Состояние | Условие | Сообщение пользователю |
 |---|---|---|
@@ -1103,15 +1106,41 @@ Supervisor проверяет:
 
 ---
 
+### Feature-режим (`code --feature N "описание"`)
+
+Добавляет новую фичу в **уже реализованный** код RFC-N — без создания отдельного RFC. Подробная дельта — в `protocols/feature-mode.md`. Feature-режим **не вызывается из `auto`**. Отличия от полного режима (шаги 0–5 выше):
+
+**Шаг 0 — Pre-flight.** Передай Supervisor: описание фичи + RFC-[N] + `docs/impl/IMPL-[N]-*.md` + MEMORY.md. Дополнительно:
+- RFC-[N] уже реализован (IMPL существует)? Нет → SKIP, подскажи `/i2c-code --rfc N`.
+- Масштаб фичи. Если фича подразумевает новое архитектурное решение, >6 новых AC, несколько компонентов или breaking-change публичного контракта → вердикт **REDIRECT**.
+
+**Шаг 1 — Architect (Feature Planning).** Один субагент `architect`, режим "Feature Planning". Передай: описание фичи + RFC-[N] + `IMPL-[N]-*.md` + MEMORY.md. Architect синтезирует новые AC из описания и пишет `.i2c/scratch/feat-[N]-plan.md`. `pipeline_state.json`: `command: "code"`.
+
+**Шаги 2–3 — Critic + Writer.** Как в полном режиме, но по `feat-[N]-plan`. Финальный план остаётся в scratch — IMPL обновится после SUCCESS.
+
+**Шаг 3.5 — Environment Bootstrap: пропускается** (окружение уже поднято).
+
+**Шаг 4 — Coding + test-writer.** Coding-агенты **расширяют** существующий код, не перезаписывают нетронутые модули. Test-writer пишет тесты только для новых AC. Тест-раннер прогоняет полный сюит (проверка регрессий).
+
+**Шаг 5 — Verification.** Проверяются новые AC; падение существующего теста с вердиктом CODE_BUG = регрессия.
+
+**После SUCCESS** (в дополнение к обычному):
+1. Обнови `docs/impl/IMPL-[N]-*.md` — секция `## История изменений` с записью о фиче.
+2. § RTM MEMORY.md — строки для новых AC.
+3. § Tech Debt MEMORY.md — запись: `RFC-[N] spec отстаёт от IMPL: фича "[описание]" реализована напрямую`.
+4. Сообщи: рекомендуется `/i2c-update-rfc [N]` для синхронизации спецификации RFC-N с кодом.
+
+---
+
 ## Команда: `auto [--from=rfc|code] [--halt-on-clarify]`
 
-Meta-команда. Автономный цикл: создаёт все planned RFC и реализует их через code-rfc секвенциально в топологическом порядке. **Не трогает PRD и ADR** — они должны быть уже приняты человеком.
+Meta-команда. Автономный цикл: создаёт все planned RFC и реализует их через code секвенциально в топологическом порядке. **Не трогает PRD и ADR** — они должны быть уже приняты человеком.
 
-**Неявно включает `--auto` семантику** для всех внутренних вызовов code-rfc (субагенты работают без запросов подтверждения).
+**Неявно включает `--auto` семантику** для всех внутренних вызовов code (субагенты работают без запросов подтверждения).
 
 **Аргументы:**
 - `--from=rfc` (default) — создаёт все `status=planned` RFC, затем реализует каждый
-- `--from=code` — только реализация: все `status=accepted` RFC без IMPL node проходят через code-rfc
+- `--from=code` — только реализация: все `status=accepted` RFC без IMPL node проходят через code
 - `--halt-on-clarify` — вместо конвертации CLARIFY → APPROVE_WITH_ASSUMPTIONS просто HALT
 
 **Предусловия (проверить первыми):**
@@ -1176,20 +1205,20 @@ Meta-команда. Автономный цикл: создаёт все planne
         ```
         Установи pipeline_state.json:
         {
-          "command": "code-rfc",
+          "command": "code",
           "argument": "<N> --auto",
           "parent_command": "auto",
           "parent_state_file": ".i2c/auto_state.json",
           ...
         }
-        Обнови auto_state.current_phase = "code-rfc"
-        Делегируй выполнение команды `code-rfc` (см. её секцию ниже).
+        Обнови auto_state.current_phase = "code"
+        Делегируй выполнение команды `code` (см. её секцию ниже).
         ```
 
       - **Ничего нет** → `auto_state.status = "done"`, сообщи пользователю "auto cycle complete. Completed: [список из completed]". Выйди.
 
 3. **После завершения sub-pipeline** (orchestrator видит `pipeline_state.status = done` И `parent_command = auto`):
-   - Добавь запись в `auto_state.completed`: `{"kind": "create-rfc" или "code-rfc", "id": "RFC-N" или "IMPL-N", "at": "<timestamp>"}`
+   - Добавь запись в `auto_state.completed`: `{"kind": "create-rfc" или "code", "id": "RFC-N" или "IMPL-N", "at": "<timestamp>"}`
    - Обнови `auto_state.updated_at`
    - **Сбрось** `pipeline_state.json` → `{}`
    - **GOTO** пункт 1 (следующая итерация)
@@ -1226,8 +1255,8 @@ Meta-команда. Автономный цикл: создаёт все planne
 | `HALT_PRECONDITIONS_MISSING` | PRD/practices/graph отсутствуют, или ADR backlog не пуст |
 | `HALT_REVISION_BUDGET` | Inner create-rfc провалил 2 revision |
 | `HALT_CLARIFY_REQUIRED` | `--halt-on-clarify` и Supervisor вернул CLARIFY |
-| `HALT_FAILURE_BUDGET` | Inner code-rfc `fixes_round >= 2` |
-| `HALT_CRITICAL_GAPS` | Inner code-rfc FAIL ≥50% модулей |
+| `HALT_FAILURE_BUDGET` | Inner code `fixes_round >= 2` |
+| `HALT_CRITICAL_GAPS` | Inner code FAIL ≥50% модулей |
 | `HALT_ENV_SETUP_FAILED` | Bootstrap упал |
 | `HALT_POLICY_VIOLATION` | Нарушение MEMORY.md constraint |
 | `HALT_CONSISTENCY` | Scoped Consistency Check — критические проблемы |
@@ -1253,7 +1282,7 @@ Meta-команда. Автономный цикл: создаёт все planne
 **Шаги:**
 1. Прочитай `docs/rfc/RFC-[N]-*.md`
 2. Спроси пользователя где находится реализация (если не очевидно из структуры проекта)
-3. Делегируй `critic` в режиме Verification (Шаг 5 из `code-rfc`)
+3. Делегируй `critic` в режиме Verification (Шаг 5 из `code`)
 4. Выведи отчёт и запиши результат в JOURNAL.md
 
 ---
@@ -1476,6 +1505,6 @@ Stage 0 — Аудит существующего проекта
 - **Финальный файл — только после ACCEPTED** — документ не попадает в `docs/` пока Supervisor не принял
 - **Обновляй pipeline_state.json на каждом шаге** — это единственный механизм resume
 - **Scratch — временный** — файлы в `.i2c/scratch/` не коммитятся
-- **Один CREATE-пайплайн за раз** — не запускай параллельно два create-* пайплайна. Но `code-rfc(N)` можно запускать параллельно с `create-rfc(M)` если между N и M нет зависимости (N не в `depends_on` M). **В auto-режиме — только секвенциально**, никаких параллельных запусков.
+- **Один CREATE-пайплайн за раз** — не запускай параллельно два create-* пайплайна. Но `code(N)` можно запускать параллельно с `create-rfc(M)` если между N и M нет зависимости (N не в `depends_on` M). **В auto-режиме — только секвенциально**, никаких параллельных запусков.
 - **Supervisor auto-mode** — если ты делегируешь supervisor в Pre-flight под auto (inner sub-pipeline запущен с `parent_command=auto`), передай в промпт `auto_mode: true`. Это превратит CLARIFY в APPROVE_WITH_ASSUMPTIONS (вопросы → предположения в блоке "Допущения"), кроме случая `--halt-on-clarify`.
 - **Всегда обновляй JOURNAL.md** — каждое завершённое действие фиксируется, паттерны от Supervisor — тоже

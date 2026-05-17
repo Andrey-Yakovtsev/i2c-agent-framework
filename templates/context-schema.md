@@ -63,7 +63,7 @@ Claude Code и Qwen Code автоматически сжимают истори�
 
 ---
 
-## code-rfc [N] — Planning фаза (Architect)
+## code [N] — Planning фаза (Architect)
 
 **Budget:** ~3000 слов.
 
@@ -77,7 +77,7 @@ Claude Code и Qwen Code автоматически сжимают истори�
 
 ---
 
-## code-rfc [N] — Coding фаза (Coder per-module)
+## code [N] — Coding фаза (Coder per-module)
 
 **Budget:** ~1500 слов. **Критично:** контекст длинный, компактность обязательна.
 
@@ -91,7 +91,7 @@ Claude Code и Qwen Code автоматически сжимают истори�
 
 ---
 
-## code-rfc [N] — Test Writing фаза
+## code [N] — Test Writing фаза
 
 **Budget:** ~2000 слов. Test Writer **НЕ читает реализацию**.
 
@@ -116,7 +116,7 @@ Claude Code и Qwen Code автоматически сжимают истори�
 - `.i2c/GOALS.md` — проверка что ADR backlog пуст (для `--from=rfc`)
 - `.i2c/MEMORY.md` § Tech Stack, § Rules
 
-**Lazy:** содержимое конкретных ADR/RFC — читается inner sub-pipelines через их собственные секции этой схемы (create-rfc, code-rfc).
+**Lazy:** содержимое конкретных ADR/RFC — читается inner sub-pipelines через их собственные секции этой схемы (create-rfc, code).
 
 **State-machine flow:** re-read всех перечисленных выше файлов в начале **каждой** итерации meta-loop (см. `protocols/auto-pipeline.md`). Не держи в памяти между итерациями.
 
@@ -144,13 +144,15 @@ Claude Code и Qwen Code автоматически сжимают истори�
 
 ---
 
-## patch-rfc [N]
+## patch-rfc [N] / code --feature
 
-**Budget:** ~2500 слов (меньше чем full code-rfc — работаем на дельте).
+**Budget:** ~2500 слов (меньше чем full `code --rfc` — работаем на дельте).
 
 - `docs/rfc/RFC-[N]-*.md` (full) — обновлённый
 - `docs/impl/IMPL-[N]-*.md` — оригинальный план
 - `impl-[N]-verification.md` (если есть) — что уже прошло
+
+**feature-режим** (`/i2c-code --feature N "описание"`) использует тот же бюджет и входы; вместо `patch-[N]-plan` Architect создаёт `feat-[N]-plan`, а описание фичи передаётся как аргумент команды.
 - `.i2c/engineering-practices.md`
 - `.i2c/MEMORY.md` § Rules
 

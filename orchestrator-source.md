@@ -50,7 +50,7 @@
 4. Сформируй prompt субагенту с готовыми входами. Субагент не догадывается.
 5. После завершения — обнови `pipeline_state.json` и переходи к следующему шагу, снова с пункта 1.
 
-**Зачем.** Это делает компактизацию контекста транзпарентной. Если Claude Code/Qwen сжали историю — компактный summary ("идёт create-prd, шаг 3") достаточен: ты всё равно делаешь re-read с диска. Правило: **не держи в голове то, что есть на диске.**
+**Зачем.** Это делает компактизацию контекста транзпарентной: даже если история сжата, ты делаешь re-read с диска. Правило: **не держи в голове то, что есть на диске.**
 
 Если `.i2c/context-schema.md` отсутствует — используй дефолтные reads из описания команды.
 
@@ -66,6 +66,7 @@
 - **CLARIFY** → задай вопрос пользователю, жди ответа (в auto-mode → `APPROVE_WITH_ASSUMPTIONS` с вопросами-допущениями)
 - **APPROVE** → сохрани подсказки, передай следующему агенту
 - **APPROVE_WITH_ASSUMPTIONS** → подсказки + допущения; агент фиксирует в `## Допущения`
+- **REDIRECT** (только feature-режим `code`) → фича крупная/архитектурная: не запускай пайплайн, предложи `/i2c-create-adr` или `/i2c-create-rfc`
 
 ### Протокол ревизий
 
@@ -268,20 +269,22 @@ Architect анализирует дельту между текущим RFC и �
 
 ---
 
-## Команда: `code-rfc [N]`
+## Команда: `code [--rfc N | --feature N "описание"] [--auto]`
 
 > Прочитай `~/i2c-agent-framework/protocols/code-pipeline.md` и `~/i2c-agent-framework/protocols/verification-cycle.md`, затем следуй им.
 
-| Параметр | Значение |
-|----------|----------|
-| MODE | full |
-| PREFIX | `impl-[N]` |
+| Параметр | `--rfc N` | `--feature N` |
+|----------|-----------|---------------|
+| MODE | full | feature |
+| PREFIX | `impl-[N]` | `feat-[N]` |
+
+`--rfc N` (или голый номер) — реализация RFC-N с нуля. `--feature N "описание"` — добавить фичу в код реализованного RFC-N; механику см. `protocols/feature-mode.md`.
 
 **Флаг `--auto`:** все субагенты с `mode: "bypassPermissions"`.
 
-**Читаешь:** RFC-[N], MEMORY.md, JOURNAL.md (какие RFC реализованы).
+**Читаешь:** RFC-[N], MEMORY.md, JOURNAL.md; для `--feature` также `IMPL-[N]`.
 
-**Специфика Pre-flight:** RFC ACCEPTED? depends_on реализованы? Нет дублирования?
+**Специфика Pre-flight:** full — RFC ACCEPTED? depends_on реализованы? Нет дублей? feature — IMPL-[N] существует? Фича не архитектурная (иначе REDIRECT)?
 
 ---
 
@@ -294,11 +297,11 @@ Architect анализирует дельту между текущим RFC и �
 | MODE | patch |
 | PREFIX | `patch-[N]` |
 
-**Флаг `--auto`:** как в code-rfc.
+**Флаг `--auto`:** как в `code`.
 
 **Читаешь:** RFC-[N], IMPL-[N], verification-отчёт (если есть), MEMORY.md, JOURNAL.md.
 
-**Отличие от code-rfc:** работает на дельте, без env bootstrap, тесты только для new_ac, полный тест-сюит (регрессия).
+**Отличие от `code`:** работает на дельте, без env bootstrap, тесты только для new_ac, полный тест-сюит (регрессия).
 
 **Специфика Pre-flight:** IMPL существует? RFC изменился? Предыдущий HALT?
 
@@ -308,22 +311,15 @@ Architect анализирует дельту между текущим RFC и �
 
 > Прочитай `~/i2c-agent-framework/protocols/auto-pipeline.md` и следуй ему.
 
-Meta-команда. Автономный цикл: создаёт все planned RFC и реализует их через code-rfc секвенциально, в топологическом порядке. **Не трогает PRD и ADR** — они должны быть уже приняты человеком.
-
-**Аргументы:**
-- `--from=rfc` (default) — create-rfc + code-rfc для всех оставшихся
-- `--from=code` — только code-rfc для accepted RFC без IMPL
-- `--halt-on-clarify` — halt вместо конвертации CLARIFY в допущения
+Meta-команда. Автономный цикл: создаёт все planned RFC и реализует их через `code` секвенциально, в топологическом порядке. **Не трогает PRD и ADR.** Аргументы и предусловия — см. `auto-pipeline.md`.
 
 **Читаешь:** `dependency-graph.json`, `auto_state.json`, `pipeline_state.json`, `PRD.md`, `engineering-practices.md`, `MEMORY.md`, `GOALS.md`.
 
-**Неявно включает `--auto` семантику** для всех дочерних `code-rfc` вызовов (bypassPermissions).
+**Неявно включает `--auto` семантику** для дочерних `code` вызовов (bypassPermissions).
 
-**Предусловия проверяет auto-pipeline.md** (PRD, practices, граф, пустой pipeline_state, пустой ADR backlog для --from=rfc).
+**Sub-pipelines запускаются с `pipeline_state.parent_command="auto"`** — триггер для orchestrator возвращать управление в auto-цикл, не выходя к пользователю.
 
-**Sub-pipelines запускаются с `pipeline_state.parent_command="auto"`** — это триггер для orchestrator не выходить в конце, а возвращать управление в auto-цикл.
-
-**HALT states** перечислены в `protocols/auto-pipeline.md`. На HALT → `auto_state.status="halted"`, `/i2c-resume` предложит retry/skip/abandon.
+**HALT states** — в `protocols/auto-pipeline.md`. На HALT → `auto_state.status="halted"`, `/i2c-resume` предложит retry/skip/abandon.
 
 ---
 
@@ -370,5 +366,5 @@ Meta-команда. Автономный цикл: создаёт все planne
 - **Финальный файл — только после ACCEPTED** — документ не попадает в `docs/` без Supervisor
 - **pipeline_state.json на каждом шаге** — единственный механизм resume
 - **Scratch — временный** — файлы в `.i2c/scratch/` не коммитятся
-- **Один create-пайплайн за раз** — но `code-rfc(N)` параллельно с `create-rfc(M)` если нет зависимости
+- **Один create-пайплайн за раз** — но `code(N)` параллельно с `create-rfc(M)` если нет зависимости
 - **JOURNAL.md** — каждое завершённое действие фиксируется

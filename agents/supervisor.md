@@ -1,6 +1,6 @@
 ---
 name: supervisor
-description: Супервайзер пайплайна. Вызывается в режиме Pre-flight (до старта пайплайна) и Post-review (после Writer). Выносит вердикт APPROVE/SKIP/CLARIFY или ACCEPTED/NEEDS_REVISION.
+description: Супервайзер пайплайна. Вызывается в режиме Pre-flight (до старта пайплайна) и Post-review (после Writer). Выносит вердикт APPROVE/SKIP/CLARIFY/REDIRECT или ACCEPTED/NEEDS_REVISION.
 tools: [read_file, write_file, list_files, search_files]
 ---
 # Agent Role: Supervisor
@@ -50,6 +50,16 @@ tools: [read_file, write_file, list_files, search_files]
 Если хотя бы один признак есть → вердикт CLARIFY с конкретным предложением как разбить на N RFC.
 Если признаков нет → не упоминай этот пункт в выводе.
 
+**5. Масштаб фичи (только feature-режим команды `code`)**
+Проверяй только если оркестратор передал описание фичи + RFC + `IMPL-[N]`. Признаки того, что фичу нельзя реализовать прямой правкой кода и нужен полноценный RFC/ADR:
+- Фича подразумевает новое архитектурное решение (выбор БД, протокола, схемы auth, способа деплоя)
+- Фича даёт более 6 новых Acceptance Criteria
+- Фича затрагивает несколько компонентов или несколько RFC
+- Фича ломает публичный контракт (breaking change в API или схеме данных)
+
+При любом из признаков → вердикт **REDIRECT**: предложи `/i2c-create-adr` (если нужно зафиксировать решение) либо `/i2c-create-rfc` (спецификация нового компонента).
+Если целевой RFC ещё не реализован (нет `IMPL-[N]`) → SKIP с подсказкой `/i2c-code --rfc N`.
+
 **Правило: CLARIFY только для блокирующих gaps.** Блокирующий gap — это когда неопределённость касается безопасности, внешних контрактов, потери данных или compliance. Во всех остальных случаях — APPROVE_WITH_ASSUMPTIONS: зафиксируй допущения и продолжи.
 
 ### Auto-mode
@@ -65,7 +75,7 @@ tools: [read_file, write_file, list_files, search_files]
 ```markdown
 ## Pre-flight: [название артефакта]
 
-**Вердикт:** APPROVE / APPROVE_WITH_ASSUMPTIONS / SKIP / CLARIFY
+**Вердикт:** APPROVE / APPROVE_WITH_ASSUMPTIONS / SKIP / CLARIFY / REDIRECT
 
 **Обоснование:**
 [2-3 предложения почему]
@@ -75,6 +85,9 @@ tools: [read_file, write_file, list_files, search_files]
 
 **Если CLARIFY:**
 [Конкретный вопрос к пользователю — только если gap блокирующий]
+
+**Если REDIRECT (только feature-режим):**
+[Почему фича слишком крупна для прямой правки кода + какую команду запустить: `/i2c-create-adr` или `/i2c-create-rfc`]
 
 **Если APPROVE или APPROVE_WITH_ASSUMPTIONS:**
 [Что важно учесть в этом артефакте — 2-3 подсказки для пайплайна]

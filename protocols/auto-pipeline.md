@@ -1,6 +1,6 @@
 # Протокол: Auto Pipeline
 
-Meta-loop для автономного цикла `create-rfc` → `code-rfc` по всем planned/unimplemented RFC. Не пишет в `dependency-graph.json` напрямую — граф обновляют внутренние sub-pipelines. Auto только читает граф и управляет последовательностью.
+Meta-loop для автономного цикла `create-rfc` → `code` по всем planned/unimplemented RFC. Не пишет в `dependency-graph.json` напрямую — граф обновляют внутренние sub-pipelines. Auto только читает граф и управляет последовательностью.
 
 ## Состояние
 
@@ -15,7 +15,7 @@ Meta-loop для автономного цикла `create-rfc` → `code-rfc` �
 ```json
 {"command":"auto","from_stage":"rfc|code","halt_on_clarify":false,
  "status":"running|halted|done","halt_reason":"...",
- "current_target":"RFC-5","current_phase":"create-rfc|code-rfc",
+ "current_target":"RFC-5","current_phase":"create-rfc|code",
  "completed":[{"kind":"create-rfc","id":"RFC-3","at":"..."}],
  "started_at":"...","updated_at":"..."}
 ```
@@ -40,7 +40,7 @@ Meta-loop для автономного цикла `create-rfc` → `code-rfc` �
    - `pipeline_state.in_progress` И `parent_command != auto` → `HALT` с `halt_reason="concurrent pipeline"`
    - `pipeline_state` пуст/done → выбрать следующий target:
      - `--from=rfc` И есть `status=planned` RFC → topological pick → установить `pipeline_state={command:"create-rfc", argument:<description>, parent_command:"auto", parent_state_file:".i2c/auto_state.json"}` → delegate `create-pipeline.md`
-     - Есть `status=accepted` RFC без исходящего edge `implements` → topological pick → установить `pipeline_state={command:"code-rfc", argument:"<N>", parent_command:"auto", parent_state_file:".i2c/auto_state.json"}` → delegate `code-pipeline.md`
+     - Есть `status=accepted` RFC без исходящего edge `implements` → topological pick → установить `pipeline_state={command:"code", argument:"<N>", parent_command:"auto", parent_state_file:".i2c/auto_state.json"}` → delegate `code-pipeline.md`
      - Ничего нет → `auto_state.status=done`, exit с сообщением "auto cycle complete"
 3. После завершения sub-pipeline (его "После завершения" шаг проверит `parent_command`):
    - SUCCESS → обнови `auto_state.completed`, reset `pipeline_state={}`, goto 1
@@ -53,8 +53,8 @@ Meta-loop для автономного цикла `create-rfc` → `code-rfc` �
 | `HALT_PRECONDITIONS_MISSING` | Предусловия не выполнены |
 | `HALT_REVISION_BUDGET` | Inner create-rfc провалил ревизию #2 |
 | `HALT_CLARIFY_REQUIRED` | `--halt-on-clarify` и Supervisor CLARIFY |
-| `HALT_FAILURE_BUDGET` | Inner code-rfc `fixes_round >= 2` |
-| `HALT_CRITICAL_GAPS` | Inner code-rfc FAIL ≥50% модулей |
+| `HALT_FAILURE_BUDGET` | Inner code `fixes_round >= 2` |
+| `HALT_CRITICAL_GAPS` | Inner code FAIL ≥50% модулей |
 | `HALT_ENV_SETUP_FAILED` | Bootstrap упал |
 | `HALT_POLICY_VIOLATION` | Нарушение MEMORY.md constraint |
 | `HALT_CONSISTENCY` | Scoped Consistency Check — критические проблемы |

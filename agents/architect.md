@@ -17,6 +17,7 @@ tools: [read_file, write_file, list_files, search_files]
 - Implementation Plan: **≤ 800 слов** (таблицы модулей не считаются)
 - Test Plan: **≤ 400 слов** (матрицы не считаются)
 - Patch Plan: **≤ 600 слов** (таблицы дельты не считаются)
+- Feature Plan: **≤ 600 слов** (таблицы дельты не считаются)
 
 ---
 
@@ -24,11 +25,12 @@ tools: [read_file, write_file, list_files, search_files]
 
 - `research.md` — результаты исследования (для PRD и RFC)
 - `MEMORY.md` — принятые решения (обязательно соблюдать)
-- Режим: PRD, ADR, RFC, Planning, Test Planning или Patch Planning
+- Режим: PRD, ADR, RFC, Planning, Test Planning, Patch Planning или Feature Planning
 - Для ADR: название решения вместо research.md
 - Для Planning: RFC и список уже реализованных RFC
 - Для Test Planning: RFC и MEMORY.md (для определения тест-фреймворка)
 - Для Patch Planning: текущий RFC + `IMPL-[N]-*.md` + `impl-[N]-verification.md` (если есть) + MEMORY.md
+- Для Feature Planning: описание фичи + текущий RFC + `IMPL-[N]-*.md` + MEMORY.md
 
 ---
 
@@ -340,6 +342,33 @@ tests/rfc-[N]/
 
 ---
 
+## Режим Feature Planning
+
+Ты получаешь **свободное описание фичи**, текущий RFC-[N] и его реализацию (`IMPL-[N]-*.md`). Фича расширяет уже работающий код. Твоя задача — превратить описание в проверяемые AC и минимальный набор задач для coding-агентов. Это **не** новый RFC — только дельта поверх существующей реализации.
+
+**1. Синтез AC**
+- Сформулируй из описания фичи 1–6 новых Acceptance Criteria. Формат как в RFC: `AC-F[k]: при [условие] происходит [результат]` — конкретно и измеримо.
+- Сверься с RFC и IMPL: фича не должна дублировать существующий AC и не должна противоречить принятым решениям RFC.
+- Если описание тянет на >6 AC, новое архитектурное решение или несколько компонентов — поставь `[NEEDS CLARIFICATION: фича слишком крупная — нужен отдельный RFC/ADR]` и не продолжай план. (Supervisor обычно отсекает такое вердиктом REDIRECT раньше — это подстраховка.)
+
+**2. Классификация** — как в Patch Planning:
+
+| Категория | Признак |
+|-----------|---------|
+| `new_ac` | Новый AC фичи — нужен новый код |
+| `changed_interface` | Фича расширяет существующий интерфейс из IMPL |
+| `unchanged` | Модули IMPL, которых фича не касается → пропустить |
+
+**3. Задачи для coding-агентов**
+Для каждого `new_ac` / `changed_interface` — самодостаточная задача: какие файлы расширить (**не перезаписывать**), какой AC покрыть, что не трогать (перечисли модули из `unchanged`).
+
+**4. Регрессионный риск**
+Для каждого `changed_interface` укажи существующие тесты (по имени файла или AC), которые могут сломаться.
+
+**Выводит:** `.i2c/scratch/feat-[N]-plan.md` — структура как у Patch Plan (см. режим Patch Planning), с заголовком `# Feature Plan: RFC-[N] — [краткое название фичи]` и секцией `## Новые AC` вместо «Дельта/Удалённые AC».
+
+---
+
 ## Формат вывода
 
 - PRD → `.i2c/scratch/prd-draft.md`
@@ -348,6 +377,7 @@ tests/rfc-[N]/
 - Planning → `.i2c/scratch/impl-[N]-plan-draft.md`
 - Test Planning → `.i2c/scratch/test-[N]-plan.md`
 - Patch Planning → `.i2c/scratch/patch-[N]-plan.md`
+- Feature Planning → `.i2c/scratch/feat-[N]-plan.md`
 
 Структура черновика соответствует шаблону из `templates/`.
 Помечай неуверенные решения: `[TODO: нужно решить]` или `[ASSUMPTION: ...]`

@@ -6,10 +6,12 @@
 
 | Параметр | Описание |
 |----------|----------|
-| `MODE` | `full` (code-rfc) / `patch` (patch-rfc) |
+| `MODE` | `full` / `patch` / `feature` |
 | `N` | Номер RFC |
 | `AUTO_FLAG` | `--auto` → `bypassPermissions`, иначе → `dontAsk` |
-| `PREFIX` | `impl-[N]` / `patch-[N]` |
+| `PREFIX` | `impl-[N]` / `patch-[N]` / `feat-[N]` |
+
+**feature mode:** механика как `patch`; Pre-flight, Planning и «После SUCCESS» — см. `protocols/feature-mode.md`.
 
 ## Шаг 0 — Supervisor Pre-flight
 
@@ -59,7 +61,7 @@
 **full:** по тест-файлу из плана. **patch:** только для new_ac.
 Пишет: `.i2c/scratch/{PREFIX}-test-report.md`
 
-**Волны:** если в плане есть `Зависит от:` между модулями — запускай волнами по топ-сорту. Группы A+B стартуют **в одном сообщении** первой волны. Test-writer — только в первой волне; последующие волны (зависимые модули, retry из Verification) — только coding.
+**Волны:** если в плане есть `Зависит от:` между модулями — запускай волнами по топ-сорту. Группы A+B стартуют **в одном сообщении** первой волны. Test-writer — только в первой волне; последующие волны — только coding.
 
 **Тест-раннер** (после завершения всех волн): команда из MEMORY.md → `.i2c/scratch/{PREFIX}-test-results.md`, формат `| Тест | AC | [Тип] | Статус | Stacktrace |` (Тип existing/new — patch only).
 
@@ -86,6 +88,6 @@
 2. Обнови MEMORY.md: § Decisions + § RTM (`✅ Verified` / `⚠️ Partial`)
 3. Отклонения AC/RFC → § Tech Debt MEMORY.md
 4. JOURNAL.md: файлы, покрытие, отклонения, tech debt
-5. **patch:** обнови `docs/impl/IMPL-[N]-*.md` — `## История изменений`
+5. **patch/feature:** обнови `docs/impl/IMPL-[N]-*.md` — `## История изменений`
 6. Обнови `dependency-graph.json`: IMPL node + edge `implements` к RFC-[N]
 7. Если `pipeline_state.parent_command == "auto"` → верни управление `auto-pipeline.md`. Иначе — сообщи пользователю.
