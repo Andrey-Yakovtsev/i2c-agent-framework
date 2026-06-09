@@ -38,7 +38,7 @@ Supervisor (pre-flight) → Researcher → Architect → Critic → Writer → S
 ### Claude Code
 
 ```bash
-git clone https://github.com/anthropics/i2c-agent-framework ~/i2c-agent-framework
+git clone https://github.com/Andrey-Yakovtsev/i2c-agent-framework
 cd ~/i2c-agent-framework
 ./install.sh /path/to/your/project
 ```
